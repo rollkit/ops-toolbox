@@ -13,7 +13,7 @@ EV-Stacks provides Docker-based deployment stacks for Rollkit chains, enabling e
 
 **Quick Start:**
 ```bash
-bash -c "bash -i <(curl -s https://raw.githubusercontent.com/auricom/ev-stacks/main/deploy-rollkit.sh)"
+bash -c "bash -i <(curl -s https://raw.githubusercontent.com/rollkit/ops-toolbox/refs/heads/main/ev-stacks/deploy-rollkit.sh)"
 ```
 
 See [EV-Stacks README](ev-stacks/README.md) for detailed documentation.

@@ -2,7 +2,7 @@
 
 # Rollkit One-Liner Deployment Script
 # This script provides a complete deployment framework for Rollkit sequencer nodes and Celestia DA
-# Usage: bash -c "bash -i <(curl -s https://raw.githubusercontent.com/rollkit/ops-toolbox/main/ev-stack/deploy-rollkit.sh)"
+# Usage: bash -c "bash -i <(curl -s https://raw.githubusercontent.com/rollkit/ops-toolbox/refs/heads/main/ev-stacks/deploy-rollkit.sh)"
 
 set -euo pipefail
 
