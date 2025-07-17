@@ -411,7 +411,7 @@ setup_sequencer_configuration() {
 		log "CONFIG" "Generating random EVM signer passphrase..."
 		local passphrase=$(openssl rand -base64 32 | tr -d '\n')
 		# Escape special characters for sed and use | as delimiter to avoid conflicts with /
-		local passphrase_escaped=$(printf '%s\n' "$passphrase" | sed 's/[[\.*^$()+?{|]/\\&/g')
+		local passphrase_escaped=$(printf '%s\n' "$passphrase" | sed 's/[\\/&]/\\&/g')
 		sed -i "s|^EVM_SIGNER_PASSPHRASE=.*|EVM_SIGNER_PASSPHRASE=\"$passphrase_escaped\"|" "$env_file"
 		log "SUCCESS" "EVM signer passphrase generated and set"
 	fi
