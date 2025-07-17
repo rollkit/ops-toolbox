@@ -1,0 +1,74 @@
+---
+services:
+  da-permission-fix:
+    container_name: da-permission-fix
+    image: busybox
+    user: root
+    volumes:
+      - celestia-node-export:/data
+    command: chown -R 10001:10001 /data
+  app:
+    container_name: celestia-app
+    image: localhost/celestia-app:rolling
+    build:
+      context: .
+      dockerfile: celestia-app.Dockerfile
+    env_file: .env
+    restart: always
+    volumes:
+      - celestia-appd-data:/home/celestia/.celestia-app
+      - ./entrypoint.appd.sh:/entrypoint.sh
+      - ../../lib/logging.sh:/usr/local/lib/logging.sh:ro
+    environment:
+      - VOLUME_EXPORT_PATH=/volumes/da_export
+    entrypoint: [/bin/bash, /entrypoint.sh]
+    healthcheck:
+      test: ["CMD", "celestia-appd", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 50
+      start_period: 5s
+    networks:
+      - evstack_shared
+
+  da:
+    container_name: celestia-node
+    image: ghcr.io/celestiaorg/celestia-node:${CELESTIA_NODE_TAG}
+    env_file: .env
+    restart: always
+    depends_on:
+      da-permission-fix:
+        condition: service_completed_successfully
+      app:
+        condition: service_healthy
+    volumes:
+      - celestia-node-data:/home/celestia
+      - celestia-node-export:/volumes/da_export
+      - ./entrypoint.da.sh:/entrypoint.sh
+      - ../../lib/logging.sh:/usr/local/lib/logging.sh:ro
+    environment:
+      - VOLUME_EXPORT_PATH=/volumes/da_export
+    entrypoint: [/bin/bash, /entrypoint.sh]
+    ports:
+      - $DA_RPC_PORT:26658
+    healthcheck:
+      test: ["CMD", "celestia", "node", "info", "--url", "http://localhost:26658"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    networks:
+      - evstack_shared
+
+volumes:
+  celestia-appd-data:
+    driver: local
+  celestia-node-data:
+    driver: local
+  celestia-node-export:
+    driver: local
+    name: celestia-node-export
+
+networks:
+  evstack_shared:
+    name: evstack_shared
