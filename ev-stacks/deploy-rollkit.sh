@@ -231,7 +231,7 @@ download_sequencer_files() {
 	cd "$DEPLOYMENT_DIR/stacks/single-sequencer" || error_exit "Failed to change to single-sequencer directory"
 
 	# Download files from the repository
-	local base_url="https://raw.githubusercontent.com/rollkit/ops-toolbox/main/ev-stack"
+	local base_url="https://raw.githubusercontent.com/rollkit/ops-toolbox/refs/heads/main/ev_stacks"
 
 	# Choose the appropriate docker-compose file based on DA selection
 	local docker_compose_file
