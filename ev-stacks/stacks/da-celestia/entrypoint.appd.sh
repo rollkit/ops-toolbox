@@ -82,7 +82,7 @@ if [ ! -f "$APPD_NODE_CONFIG_PATH" ]; then
     log "SUCCESS" "Data directory prepared"
 
     log "INFO" "Fetching snapshot information"
-    snapshot_url="https://server-5.itrocket.net/testnet/celestia/.current_state.json"
+    snapshot_url="${SNAPSHOT_URL:-https://server-5.itrocket.net/testnet/celestia/.current_state.json}"
     log "DOWNLOAD" "Fetching snapshot metadata from: $snapshot_url"
 
     if ! response=$(curl -fsSL "$snapshot_url" 2>/dev/null); then

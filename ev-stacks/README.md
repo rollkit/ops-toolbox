@@ -59,10 +59,10 @@ Deploy a complete EVM stack with one command:
 
 ```bash
 # One-liner deployment (interactive)
-bash -c "bash -i <(curl -s https://raw.githubusercontent.com/auricom/ev-stacks/main/deploy-rollkit.sh)"
+bash -c "bash -i <(curl -s https://raw.githubusercontent.com/rollkit/ops-toolbox/main/ev-stack/deploy-rollkit.sh)"
 
 # Or download and run locally
-wget https://raw.githubusercontent.com/auricom/ev-stacks/main/deploy-rollkit.sh
+wget https://raw.githubusercontent.com/rollkit/ops-toolbox/main/ev-stack/deploy-rollkit.sh
 chmod +x deploy-rollkit.sh
 ./deploy-rollkit.sh
 ```
@@ -320,10 +320,10 @@ docker run --rm -v sequencer-data:/data -v $(pwd):/backup alpine tar xzf /backup
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is released into the public domain under the Unlicense - see the [LICENSE](LICENSE) file for details.
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/auricom/ev-stacks/issues)
+- **Issues**: [GitHub Issues](https://github.com/rollkit/ops-toolbox/issues)
 - **Documentation**: See the guides above for detailed information
 - **Community**: Join the Rollkit community for support

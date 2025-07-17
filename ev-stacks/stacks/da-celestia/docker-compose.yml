@@ -50,7 +50,7 @@ services:
       - VOLUME_EXPORT_PATH=/volumes/da_export
     entrypoint: [/bin/bash, /entrypoint.sh]
     ports:
-      - 26658:$DA_RPC_PORT
+      - $DA_RPC_PORT:26658
     healthcheck:
       test: ["CMD", "celestia", "node", "info", "--url", "http://localhost:26658"]
       interval: 30s
