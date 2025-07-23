@@ -210,6 +210,36 @@ The script automatically configures:
 - **Example**: `1234` for development, or your custom ID
 - **Why needed**: Prevents transaction replay attacks between different chains
 
+#### Ethereum Addresses (Required)
+- **What they are**: Ethereum addresses that will receive initial token balances in the genesis block
+- **Requirement**: You **must** provide at least one valid Ethereum address during deployment
+- **Format**: Standard Ethereum address format (0x followed by 40 hexadecimal characters)
+- **Important**: You must possess the private keys for these addresses to make transactions on your blockchain
+
+**Creating Ethereum Wallets with Foundry:**
+
+If you don't have an Ethereum address, you can create one using Foundry's `cast` tool:
+
+```bash
+# Install Foundry (if you haven't already)
+curl -L https://foundry.paradigm.xyz | bash
+foundryup
+
+# Create a new wallet
+cast wallet new
+
+# Example output:
+# Successfully created new keypair.
+# Address:     0x742d35Cc6634C0532925a3b8D4C9db96590c6C87
+# Private key: 0x1234567890abcdef...
+
+# You can also create a named wallet
+cast wallet new my-wallet
+
+# Import an existing private key
+cast wallet import my-existing-wallet --interactive
+```
+
 #### EVM Signer Passphrase
 - **What it is**: A password that protects the sequencer's signing key
 - **Generation**: Automatically generated using `openssl rand -base64 32`
@@ -217,7 +247,7 @@ The script automatically configures:
 
 #### DA Namespace
 - **What it is**: A unique identifier for your data on Celestia
-- **Format**: 28-byte hex string (e.g., `000000000000000000000000000000000000002737d4d967c7ca526dd5`)
+- **Format**: 58-character hex string representing a 29-byte identifier (e.g., `000000000000000000000000000000000000002737d4d967c7ca526dd5`)
 - **Purpose**: Separates your blockchain's data from other chains using Celestia
 
 #### JWT Tokens

@@ -489,20 +489,30 @@ setup_genesis_allocation() {
 	echo "   when the blockchain is live. If you don't have the private keys, you won't be able"
 	echo "   to access the funds allocated to these addresses."
 	echo ""
-	echo "📝 Please enter Ethereum addresses (one per line). Press Enter on an empty line to finish:"
-	echo "   Example: 0x742d35Cc6634C0532925a3b8D4C9db96590c6C87"
+	echo "📝 Please enter Ethereum addresses (one per line). You must provide at least one valid address:"
 	echo ""
 
 	local user_addresses=()
 	local address_count=0
 
 	while true; do
-		echo -n "Address $((address_count + 1)) (or press Enter to finish): "
-		read -r address
+		echo -n "Address $((address_count + 1)) (required): "
+		if ! read -r address; then
+			# Handle Ctrl+C or EOF
+			echo ""
+			error_exit "Input interrupted by user" 130
+		fi
 
-		# If empty input, break the loop
+		# If empty input and no addresses added yet, require input
 		if [[ -z "$address" ]]; then
-			break
+			if [[ ${#user_addresses[@]} -eq 0 ]]; then
+				echo "❌ Error: At least one valid Ethereum address is required."
+				echo "   You cannot proceed without providing a valid address."
+				continue
+			else
+				# User has provided at least one address, allow them to finish
+				break
+			fi
 		fi
 
 		# Validate the address format
@@ -510,32 +520,23 @@ setup_genesis_allocation() {
 			user_addresses+=("$address")
 			address_count=$((address_count + 1))
 			echo "✅ Valid address added: $address"
+			echo ""
+			echo "💡 You can add more addresses or press Enter to continue with the current addresses."
 		else
 			echo "❌ Invalid Ethereum address format. Please enter a valid address starting with 0x followed by 40 hexadecimal characters."
-			echo "   Example: 0x742d35Cc6634C0532925a3b8D4C9db96590c6C87"
 		fi
 	done
 
-	# Update genesis.json with user addresses or keep defaults
-	if [[ ${#user_addresses[@]} -gt 0 ]]; then
-		log "CONFIG" "Updating genesis.json with ${#user_addresses[@]} user-provided address(es)..."
-		update_genesis_allocation "${user_addresses[@]}"
-		echo ""
-		echo "✅ Genesis block updated with your addresses:"
-		for addr in "${user_addresses[@]}"; do
-			echo "   - $addr"
-		done
-		echo ""
-		echo "💡 Each address will receive a large initial balance for testing purposes."
-	else
-		log "INFO" "No addresses provided. Using default genesis allocation."
-		echo ""
-		echo "⚠️  Using default addresses in genesis block. You will NOT have access to their private keys."
-		echo "   This means you won't be able to make transactions easily for testing."
-		echo ""
-		echo "💡 Consider restarting the deployment and providing your own addresses if you need"
-		echo "   to test transactions on the blockchain."
-	fi
+	# Update genesis.json with user addresses (guaranteed to have at least one)
+	log "CONFIG" "Updating genesis.json with ${#user_addresses[@]} user-provided address(es)..."
+	update_genesis_allocation "${user_addresses[@]}"
+	echo ""
+	echo "✅ Genesis block updated with your addresses:"
+	for addr in "${user_addresses[@]}"; do
+		echo "   - $addr"
+	done
+	echo ""
+	echo "💡 Each address will receive a large initial balance for testing purposes."
 
 	echo ""
 }
@@ -789,14 +790,39 @@ setup_da_celestia_configuration() {
 	if grep -q "^DA_NAMESPACE=$" "$env_file" || ! grep -q "^DA_NAMESPACE=" "$env_file"; then
 		echo ""
 		echo "🌌 Namespace is required for Celestia data availability."
-echo "This should be a 29-byte identifier (entered as a 58-character hex string) used to categorize and retrieve blobs, composed of a 1-byte version and a 28-byte ID. (Full documentation: https://celestiaorg.github.io/celestia-app/specs/namespace.html)."
+		echo "This should be a 29-byte identifier (entered as a 58-character hex string) used to categorize and retrieve blobs, composed of a 1-byte version and a 28-byte ID. (Full documentation: https://celestiaorg.github.io/celestia-app/specs/namespace.html)."
 		echo "Example: '000000000000000000000000000000000000002737d4d967c7ca526dd5'"
-		read -r da_namespace
 
-		# Validate DA namespace (alphanumeric only)
-		if ! [[ $da_namespace =~ ^[a-zA-Z0-9]+$ ]]; then
-			error_exit "DA namespace must contain only alphanumeric characters"
-		fi
+		while true; do
+			echo -n "Please enter the namespace (58-character hex string): "
+			if ! read -r da_namespace; then
+				# Handle Ctrl+C or EOF
+				echo ""
+				error_exit "Input interrupted by user" 130
+			fi
+
+			# Validate DA namespace format
+			if [[ -z "$da_namespace" ]]; then
+				echo "❌ Error: Namespace cannot be empty."
+				continue
+			fi
+
+			# Check if it's exactly 58 characters
+			if [[ ${#da_namespace} -ne 58 ]]; then
+				echo "❌ Error: Namespace must be exactly 58 characters long. You entered ${#da_namespace} characters."
+				continue
+			fi
+
+			# Check if it contains only hexadecimal characters (0-9, a-f, A-F)
+			if ! [[ $da_namespace =~ ^[0-9a-fA-F]{58}$ ]]; then
+				echo "❌ Error: Namespace must contain only hexadecimal characters (0-9, a-f, A-F)."
+				continue
+			fi
+
+			# All validations passed
+			echo "✅ Valid namespace format."
+			break
+		done
 
 		# Update DA_NAMESPACE in .env file
 		update_env_var "$env_file" "DA_NAMESPACE" "$da_namespace"
@@ -974,7 +1000,7 @@ show_deployment_status() {
 	if [[ $SELECTED_SEQUENCER == "single-sequencer" ]]; then
 		echo "  📡 Single Sequencer:"
 		echo "    - Reth Prometheus Metrics: http://localhost:9000"
-		echo "    - Single Sequencer Prometheus Metrics: http://localhost:26660"
+		echo "    - Single Sequencer Prometheus Metrics: http://localhost:26660/metrics"
 	fi
 
 	if [[ $DEPLOY_FULLNODE == "true" ]]; then
@@ -982,7 +1008,7 @@ show_deployment_status() {
 		echo "    - Reth RPC: http://localhost:8545"
 		echo "    - Reth Prometheus Metrics: http://localhost:9002"
         echo "    - Rollkit RPC: http://localhost:7331"
-		echo "    - Rollkit Prometheus Metrics: http://localhost:26662"
+		echo "    - Rollkit Prometheus Metrics: http://localhost:26662/metrics"
 	fi
 
 	echo ""
