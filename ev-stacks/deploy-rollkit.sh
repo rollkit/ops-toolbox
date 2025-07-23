@@ -789,7 +789,7 @@ setup_da_celestia_configuration() {
 	if grep -q "^DA_NAMESPACE=$" "$env_file" || ! grep -q "^DA_NAMESPACE=" "$env_file"; then
 		echo ""
 		echo "🌌 Namespace is required for Celestia data availability."
-		echo "This should be a 29-byte identifier used to categorize and retrieve blobs, composed of a 1-byte version and a 28-byte ID. (Full documentation: https://celestiaorg.github.io/celestia-app/specs/namespace.html)."
+echo "This should be a 29-byte identifier (entered as a 58-character hex string) used to categorize and retrieve blobs, composed of a 1-byte version and a 28-byte ID. (Full documentation: https://celestiaorg.github.io/celestia-app/specs/namespace.html)."
 		echo "Example: '000000000000000000000000000000000000002737d4d967c7ca526dd5'"
 		read -r da_namespace
 
