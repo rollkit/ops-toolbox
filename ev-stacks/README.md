@@ -53,6 +53,27 @@ If deploying with Celestia as the Data Availability layer, additional configurat
   - Get testnet tokens from the [Celestia Discord faucet](https://discord.gg/celestiacommunity)
   - The deployment will show you the address to fund after setup
 
+### Ethereum Addresses
+Ethereum addresses that will receive initial token balances in the genesis block. You must possess the private keys for these addresses to make transactions on your chain
+
+**Creating Ethereum Wallets with Foundry:**
+
+If you don't have an Ethereum address, you can create one using Foundry's `cast` tool:
+
+```bash
+# Install Foundry (if you haven't already)
+curl -L https://foundry.paradigm.xyz | bash
+foundryup
+
+# Create a new wallet
+cast wallet new
+
+# Example output:
+# Successfully created new keypair.
+# Address:     0x742d35Cc6634C0532925a3b8D4C9db96590c6C87
+# Private key: 0x1234567890abcdef...
+```
+
 ## Quick Start
 
 Deploy a complete EVM stack with one command:
@@ -185,7 +206,7 @@ A complete single-node EVM sequencer stack including:
 **Services:**
 
 - Reth Prometheus Metrics: `http://localhost:9000`
-- Rollkit Prometheus Metrics: `http://localhost:26660`
+- Rollkit Prometheus Metrics: `http://localhost:26660/metrics`
 
 ### 🌐 Full Node (`stacks/fullnode/`)
 
@@ -199,14 +220,14 @@ Additional full node deployment for enhanced network connectivity:
 - Reth RPC: `http://localhost:8545`
 - Reth Prometheus Metrics: `http://localhost:9002`
 - Rollkit RPC: `http://localhost:7331`
-- Rollkit Prometheus Metrics: `http://localhost:26662`
+- Rollkit Prometheus Metrics: `http://localhost:26662/metrics`
 
 ## Configuration
 
 The script automatically configures:
 
 #### Chain ID
-- **What it is**: A unique identifier for your blockchain
+- **What it is**: A unique identifier for your chain
 - **Example**: `1234` for development, or your custom ID
 - **Why needed**: Prevents transaction replay attacks between different chains
 
@@ -217,8 +238,8 @@ The script automatically configures:
 
 #### DA Namespace
 - **What it is**: A unique identifier for your data on Celestia
-- **Format**: 28-byte hex string (e.g., `000000000000000000000000000000000000002737d4d967c7ca526dd5`)
-- **Purpose**: Separates your blockchain's data from other chains using Celestia
+- **Format**: 58-character hex string representing a 29-byte identifier (e.g., `000000000000000000000000000000000000002737d4d967c7ca526dd5`)
+- **Purpose**: Separates your chain's data from other chains using Celestia
 
 #### JWT Tokens
 - **What they are**: Secure tokens for communication between Reth and Rollkit
@@ -285,7 +306,7 @@ Each stack has its own `.env` file with specific configuration:
 
 **Single Sequencer**:
 ```bash
-CHAIN_ID="1234"                           # Your blockchain's unique ID
+CHAIN_ID="1234"                           # Your chain's unique ID
 EVM_SIGNER_PASSPHRASE="secure_password"   # Sequencer signing key protection
 DA_NAMESPACE="your_namespace_hex"         # Celestia namespace
 DA_START_HEIGHT="6853148"                 # Starting block on Celestia
@@ -324,14 +345,14 @@ After deployment, you'll have access to these endpoints:
   - Use for sending transactions, querying state
 - **Reth Metrics**: `http://localhost:9000`
   - Prometheus metrics for monitoring
-- **Rollkit Metrics**: `http://localhost:26660`
+- **Rollkit Metrics**: `http://localhost:26660/metrics`
   - Consensus layer metrics
 
 ### Full Node Stack (if deployed)
 - **Full Node RPC**: `http://localhost:8545` (different port mapping)
 - **Full Node Metrics**: `http://localhost:9002`
 - **Rollkit Full Node RPC**: `http://localhost:7331`
-- **Rollkit Full Node Metrics**: `http://localhost:26662`
+- **Rollkit Full Node Metrics**: `http://localhost:26662/metrics`
 
 ### Celestia DA
 - **Light Node RPC**: `http://localhost:26658`
