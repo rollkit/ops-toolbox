@@ -50,7 +50,7 @@ If deploying with Celestia as the Data Availability layer, additional configurat
   ```
 
 - **TIA Tokens**: You'll need testnet mocha-4 TIA tokens to fund your Celestia light node
-  - Get testnet tokens from the [Celestia Discord faucet](https://discord.gg/celestiacommunity)
+  - Get testnet tokens from the [Celestia Discord faucet](https://discord.gg/celestiacommunity) or the [Celenium web faucet](https://mocha.celenium.io/faucet)
   - The deployment will show you the address to fund after setup
 
 ### Ethereum Addresses
@@ -118,7 +118,7 @@ docker compose logs -f
 # Get the account address to fund
 docker exec -it celestia-node cel-key list --node.type=light
 
-# Fund this address using the Celestia Discord faucet: https://discord.gg/celestiacommunity
+# Fund this address using the Celestia Discord faucet (https://discord.gg/celestiacommunity) or the Celenium web faucet (https://mocha.celenium.io/faucet)
 ```
 
 #### 2. Start the Single Sequencer
