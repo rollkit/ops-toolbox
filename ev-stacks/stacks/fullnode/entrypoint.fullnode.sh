@@ -92,7 +92,7 @@ RESPONSE=$(curl -sX POST \
 	-H "Content-Type: application/json" \
 	-H "Connect-Protocol-Version: 1" \
 	-d "{}" \
-	http://single-sequencer:7331/rollkit.v1.P2PService/GetNetInfo)
+	http://ev-node-single-sequencer:7331/evnode.v1.P2PService/GetNetInfo)
 
 if [ $? -eq 0 ] && [ -n "${RESPONSE}" ]; then
 	log "SUCCESS" "Received response from sequencer"
@@ -113,27 +113,27 @@ fi
 # Auto-retrieve genesis hash if not provided
 log "INFO" "Checking genesis hash configuration"
 if [ -z "${EVM_GENESIS_HASH:-}" ] && [ -n "${EVM_ETH_URL:-}" ]; then
-	log "INFO" "EVM_GENESIS_HASH not provided, attempting to retrieve from reth-sequencer at: ${EVM_ETH_URL}"
+	log "INFO" "EVM_GENESIS_HASH not provided, attempting to retrieve from ev-reth-sequencer at: ${EVM_ETH_URL}"
 
-	# Wait for reth-sequencer to be ready (max 60 seconds)
+	# Wait for ev-reth-sequencer to be ready (max 60 seconds)
 	retry_count=0
 	max_retries=12
 	while [ "${retry_count}" -lt "${max_retries}" ]; do
 		if curl -s --connect-timeout 5 "${EVM_ETH_URL}" >/dev/null 2>&1; then
-			log "SUCCESS" "Reth-sequencer is ready, retrieving genesis hash..."
+			log "SUCCESS" "Ev-reth-sequencer is ready, retrieving genesis hash..."
 			break
 		fi
-		log "INFO" "Waiting for reth-sequencer to be ready... (attempt $((retry_count + 1))/${max_retries})"
+		log "INFO" "Waiting for ev-reth-sequencer to be ready... (attempt $((retry_count + 1))/${max_retries})"
 		sleep 5
 		retry_count=$((retry_count + 1))
 	done
 
 	if [ "${retry_count}" -eq "${max_retries}" ]; then
-		log "WARNING" "Could not connect to reth-sequencer at ${EVM_ETH_URL} after ${max_retries} attempts"
+		log "WARNING" "Could not connect to ev-reth-sequencer at ${EVM_ETH_URL} after ${max_retries} attempts"
 		log "WARNING" "Proceeding without auto-retrieved genesis hash..."
 	else
 		# Retrieve genesis block hash using curl and shell parsing
-		log "NETWORK" "Fetching genesis block from reth-sequencer..."
+		log "NETWORK" "Fetching genesis block from ev-reth-sequencer..."
 		genesis_response=$(curl -s -X POST -H "Content-Type: application/json" \
 			--data '{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["0x0", false],"id":1}' \
 			"${EVM_ETH_URL}" 2>/dev/null)
@@ -151,7 +151,7 @@ if [ -z "${EVM_GENESIS_HASH:-}" ] && [ -n "${EVM_ETH_URL:-}" ]; then
 				log "DEBUG" "Response: ${genesis_response}"
 			fi
 		else
-			log "WARNING" "Failed to retrieve genesis block from reth-sequencer"
+			log "WARNING" "Failed to retrieve genesis block from ev-reth-sequencer"
 		fi
 	fi
 elif [ -n "${EVM_GENESIS_HASH}" ]; then
@@ -162,7 +162,7 @@ fi
 
 # Build start flags array
 log "INFO" "Building startup configuration flags"
-default_flags=""
+default_flags="--full"
 
 # Add required flags if environment variables are set
 if [ -n "${CHAIN_ID:-}" ]; then
@@ -192,29 +192,29 @@ fi
 
 log "INFO" "Configuring Data Availability (DA) settings"
 if [ -n "${SEQUENCER_P2P_INFO:-}" ]; then
-	default_flags="${default_flags} --rollkit.p2p.peers ${SEQUENCER_P2P_INFO}"
+	default_flags="${default_flags} --evnode.p2p.peers ${SEQUENCER_P2P_INFO}"
 	log "DEBUG" "Added p2p peer flag: ${SEQUENCER_P2P_INFO}"
 fi
 
 # Conditionally add DA-related flags
 log "INFO" "Configuring Data Availability (DA) settings"
 if [ -n "${DA_ADDRESS:-}" ]; then
-	default_flags="${default_flags} --rollkit.da.address ${DA_ADDRESS}"
+	default_flags="${default_flags} --evnode.da.address ${DA_ADDRESS}"
 	log "DEBUG" "Added DA address flag: ${DA_ADDRESS}"
 fi
 
 if [ -n "${DA_AUTH_TOKEN:-}" ]; then
-	default_flags="${default_flags} --rollkit.da.auth_token ${DA_AUTH_TOKEN}"
+	default_flags="${default_flags} --evnode.da.auth_token ${DA_AUTH_TOKEN}"
 	log "DEBUG" "Added DA auth token flag"
 fi
 
 if [ -n "${DA_NAMESPACE:-}" ]; then
-	default_flags="${default_flags} --rollkit.da.namespace ${DA_NAMESPACE}"
+	default_flags="${default_flags} --evnode.da.namespace ${DA_NAMESPACE}"
 	log "DEBUG" "Added DA namespace flag: ${DA_NAMESPACE}"
 fi
 
 if [ -n "${DA_START_HEIGHT:-}" ]; then
-	default_flags="${default_flags} --rollkit.da.start_height ${DA_START_HEIGHT}"
+	default_flags="${default_flags} --evnode.da.start_height ${DA_START_HEIGHT}"
 	log "DEBUG" "Added DA start height flag: ${DA_START_HEIGHT}"
 fi
 

@@ -17,20 +17,20 @@ services:
         openssl rand -hex 32 | tr -d '\n' > /jwt/jwt.hex;
       fi"
 
-  reth-sequencer:
-    container_name: reth-sequencer
-    image: ghcr.io/rollkit/lumen:latest
+  ev-reth-sequencer:
+    container_name: ev-reth-sequencer
+    image: ghcr.io/evstack/ev-reth:latest
     depends_on:
       jwt-init-sequencer:
         condition: service_completed_successfully
     env_file: .env
     ports:
-      - $SEQUENCER_RETH_PROMETHEUS_PORT:9001
+      - $SEQUENCER_EV_RETH_PROMETHEUS_PORT:9001
     restart: always
     volumes:
       - ./genesis.json:/root/genesis.json:ro
       - jwttoken-sequencer:/root/jwt:ro
-      - reth-sequencer-data:/root/reth
+      - ev-reth-sequencer-data:/root/reth
     entrypoint: /bin/sh -c
     command:
       - |
@@ -59,16 +59,16 @@ services:
 
   single-sequencer:
     container_name: single-sequencer
-    image: localhost/rollkit-evm-single:rolling
+    image: localhost/ev-node-evm-single:rolling
     build:
       context: .
       dockerfile: single-sequencer.Dockerfile
     env_file: .env
     ports:
-      - $SEQUENCER_ROLLKIT_PROMETHEUS_PORT:26660
+      - $SEQUENCER_EV_NODE_PROMETHEUS_PORT:26660
     restart: always
     depends_on:
-      reth-sequencer:
+      ev-reth-sequencer:
         condition: service_started
     volumes:
       - sequencer-data:/root/.evm-single
@@ -79,13 +79,13 @@ services:
       - ../../lib/logging.sh:/usr/local/lib/logging.sh:ro
     command:
       - start
-      - --rollkit.rpc.address=0.0.0.0:7331
-      - --rollkit.p2p.listen_address=/ip4/0.0.0.0/tcp/7676
-      - --rollkit.instrumentation.prometheus
-      - --rollkit.instrumentation.prometheus_listen_addr=:26660
+      - --evnode.rpc.address=0.0.0.0:7331
+      - --evnode.p2p.listen_address=/ip4/0.0.0.0/tcp/7676
+      - --evnode.instrumentation.prometheus
+      - --evnode.instrumentation.prometheus_listen_addr=:26660
     environment:
-      - EVM_ENGINE_URL=http://reth-sequencer:8551
-      - EVM_ETH_URL=http://reth-sequencer:8545
+      - EVM_ENGINE_URL=http://ev-reth-sequencer:8551
+      - EVM_ETH_URL=http://ev-reth-sequencer:8545
       - EVM_JWT_PATH=/root/jwt/jwt.hex
       - EVM_BLOCK_TIME=500ms
       - EVM_SIGNER_PASSPHRASE=${EVM_SIGNER_PASSPHRASE}
@@ -100,7 +100,7 @@ services:
 volumes:
   jwttoken-sequencer:
     driver: local
-  reth-sequencer-data:
+  ev-reth-sequencer-data:
     driver: local
   sequencer-data:
     driver: local
