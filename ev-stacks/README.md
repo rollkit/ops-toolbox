@@ -1,10 +1,10 @@
-# EV-Stacks: Easy Rollkit deployments
+# EV-Stacks: Easy Evolve deployments
 
-A collection of Docker-based deployment stacks for Rollkit chains.
+A collection of Docker-based deployment stacks for Evolve chains.
 
 ## Overview
 
-EV-Stacks provides pre-configured deployment stacks for running EVM-compatible blockchain infrastructure with different configurations:
+EV-Stacks provides pre-configured deployment stacks for running Evolve chains with different configurations:
 
 - **Single Sequencer**: A single-node sequencer setup for development and testing
 - **Full Node**: Additional network connectivity and redundancy
@@ -80,12 +80,12 @@ Deploy a complete EVM stack with one command:
 
 ```bash
 # One-liner deployment (interactive)
-bash -c "bash -i <(curl -s https://raw.githubusercontent.com/rollkit/ops-toolbox/main/ev-stack/deploy-rollkit.sh)"
+bash -c "bash -i <(curl -s https://raw.githubusercontent.com/evstack/ev-toolbox/main/ev-stack/deploy-evolve.sh)"
 
 # Or download and run locally
-wget https://raw.githubusercontent.com/rollkit/ops-toolbox/main/ev-stack/deploy-rollkit.sh
-chmod +x deploy-rollkit.sh
-./deploy-rollkit.sh
+wget https://raw.githubusercontent.com/evstack/ev-toolbox/main/ev-stack/deploy-evolve.sh
+chmod +x deploy-evolve.sh
+./deploy-evolve.sh
 ```
 
 The deployment script will guide you through:
@@ -102,7 +102,7 @@ The deployment script will guide you through:
 #### 1. Start the Data Availability Layer First
 
 ```bash
-cd $HOME/rollkit-deployment/stacks/da-celestia
+cd $HOME/evolve-deployment/stacks/da-celestia
 docker compose up -d
 ```
 
@@ -124,7 +124,7 @@ docker exec -it celestia-node cel-key list --node.type=light
 #### 2. Start the Single Sequencer
 
 ```bash
-cd $HOME/rollkit-deployment/stacks/single-sequencer
+cd $HOME/evolve-deployment/stacks/single-sequencer
 docker compose up -d
 ```
 
@@ -137,7 +137,7 @@ docker compose logs -f
 #### 3. Start the Fullnode (if deployed)
 
 ```bash
-cd $HOME/rollkit-deployment/stacks/fullnode
+cd $HOME/evolve-deployment/stacks/fullnode
 docker compose up -d
 ```
 
@@ -152,7 +152,7 @@ docker compose logs -f
 The deployment script organizes files in the following structure:
 
 ```
-$HOME/rollkit-deployment/
+$HOME/evolve-deployment/
 ├── lib/
 │   └── logging.sh              # Centralized logging functions
 └── stacks/
@@ -167,9 +167,9 @@ After all services are running, verify the deployment:
 
 ```bash
 # Check all services are running
-cd $HOME/rollkit-deployment/stacks/da-celestia && docker compose ps
-cd $HOME/rollkit-deployment/stacks/single-sequencer && docker compose ps
-cd $HOME/rollkit-deployment/stacks/fullnode && docker compose ps  # if deployed
+cd $HOME/evolve-deployment/stacks/da-celestia && docker compose ps
+cd $HOME/evolve-deployment/stacks/single-sequencer && docker compose ps
+cd $HOME/evolve-deployment/stacks/fullnode && docker compose ps  # if deployed
 
 # Test the RPC endpoints
 curl -X POST -H "Content-Type: application/json" \
@@ -200,13 +200,13 @@ Celestia modular data availability layer integration:
 
 A complete single-node EVM sequencer stack including:
 
-- **Reth Sequencer**: EVM execution layer using Lumen (Reth fork)
-- **Rollkit Sequencer**: Consensus and block production
+- **Ev-reth**: EVM execution layer using Lumen (Reth fork)
+- **Ev-node**: Consensus and block production
 
 **Services:**
 
-- Reth Prometheus Metrics: `http://localhost:9000`
-- Rollkit Prometheus Metrics: `http://localhost:26660/metrics`
+- Ev-reth Prometheus Metrics: `http://localhost:9000`
+- Ev-node Prometheus Metrics: `http://localhost:26660/metrics`
 
 ### 🌐 Full Node (`stacks/fullnode/`)
 
@@ -217,10 +217,10 @@ Additional full node deployment for enhanced network connectivity:
 
 **Services:**
 
-- Reth RPC: `http://localhost:8545`
-- Reth Prometheus Metrics: `http://localhost:9002`
-- Rollkit RPC: `http://localhost:7331`
-- Rollkit Prometheus Metrics: `http://localhost:26662/metrics`
+- Ev-reth RPC: `http://localhost:8545`
+- Ev-reth Prometheus Metrics: `http://localhost:9002`
+- Ev-node RPC: `http://localhost:7331`
+- Ev-node Prometheus Metrics: `http://localhost:26662/metrics`
 
 ## Configuration
 
@@ -242,7 +242,7 @@ The script automatically configures:
 - **Purpose**: Separates your chain's data from other chains using Celestia
 
 #### JWT Tokens
-- **What they are**: Secure tokens for communication between Reth and Rollkit
+- **What they are**: Secure tokens for communication between Ev-Reth and Ev-node
 - **Generation**: Automatically created using `openssl rand -hex 32`
 - **Purpose**: Authenticates internal API calls between components
 
@@ -257,7 +257,7 @@ The script automatically configures:
 - **Shared volumes** for passing authentication tokens between services
 - **Examples**:
   - `reth-sequencer-data`: Blockchain state and transaction data
-  - `sequencer-data`: Rollkit configuration and keys
+  - `sequencer-data`: Ev-node configuration and keys
   - `celestia-node-data`: Celestia light node data
   - `celestia-node-export`: Shared authentication tokens
 
@@ -265,8 +265,8 @@ The script automatically configures:
 
 #### Single Sequencer Stack
 1. **jwt-init-sequencer**: Creates JWT tokens for secure communication
-2. **reth-sequencer**: EVM execution layer (Lumen/Reth)
-3. **single-sequencer**: Rollkit consensus layer
+2. **reth-sequencer**: EVM execution layer (Ev-reth)
+3. **single-sequencer**: Ev-node consensus layer
    - **Entrypoint automation**:
      - Initializes sequencer configuration with signer passphrase if not present
      - Exports genesis.json to shared volume for fullnode access
@@ -291,7 +291,7 @@ The script automatically configures:
 #### Full Node Stack (Optional)
 1. **jwt-init-fullnode**: Creates JWT tokens for full node
 2. **reth-fullnode**: EVM execution layer for full node
-3. **fullnode**: Rollkit full node (follows the sequencer)
+3. **fullnode**: Ev-node full node (follows the sequencer)
    - **Entrypoint automation**:
      - Initializes fullnode configuration if not present
      - Imports genesis.json from sequencer's shared volume
@@ -311,8 +311,8 @@ EVM_SIGNER_PASSPHRASE="secure_password"   # Sequencer signing key protection
 DA_NAMESPACE="your_namespace_hex"         # Celestia namespace
 DA_START_HEIGHT="6853148"                 # Starting block on Celestia
 DA_RPC_PORT="26658"                       # Celestia RPC port
-SEQUENCER_RETH_PROMETHEUS_PORT="9000"     # Metrics port for Reth
-SEQUENCER_ROLLKIT_PROMETHEUS_PORT="26660" # Metrics port for Rollkit
+SEQUENCER_EV_RETH_PROMETHEUS_PORT="9000"     # Metrics port for Ev-reth
+SEQUENCER_EV_NODE_PROMETHEUS_PORT="26660" # Metrics port for Ev-node
 ```
 
 **Celestia DA**:
@@ -340,19 +340,19 @@ Smart startup scripts that:
 After deployment, you'll have access to these endpoints:
 
 ### Sequencer Stack
-- **Reth JSON-RPC**: `http://localhost:8545`
+- **Ev-reth JSON-RPC**: `http://localhost:8545`
   - Standard Ethereum JSON-RPC interface
   - Use for sending transactions, querying state
-- **Reth Metrics**: `http://localhost:9000`
+- **Ev-reth Metrics**: `http://localhost:9000`
   - Prometheus metrics for monitoring
-- **Rollkit Metrics**: `http://localhost:26660/metrics`
+- **Ev-node Metrics**: `http://localhost:26660/metrics`
   - Consensus layer metrics
 
 ### Full Node Stack (if deployed)
-- **Full Node RPC**: `http://localhost:8545` (different port mapping)
-- **Full Node Metrics**: `http://localhost:9002`
-- **Rollkit Full Node RPC**: `http://localhost:7331`
-- **Rollkit Full Node Metrics**: `http://localhost:26662/metrics`
+- **Ev-reth RPC**: `http://localhost:8545` (different port mapping)
+- **Ev-reth Metrics**: `http://localhost:9002`
+- **Ev-node RPC**: `http://localhost:7331`
+- **Ev-node Metrics**: `http://localhost:26662/metrics`
 
 ### Celestia DA
 - **Light Node RPC**: `http://localhost:26658`
@@ -439,6 +439,6 @@ This project is released into the public domain under the Unlicense - see the [L
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/rollkit/ops-toolbox/issues)
+- **Issues**: [GitHub Issues](https://github.com/evstack/ev-toolbox/issues)
 - **Documentation**: See the guides above for detailed information
-- **Community**: Join the Rollkit community for support
+- **Community**: Join the Evolve community for support

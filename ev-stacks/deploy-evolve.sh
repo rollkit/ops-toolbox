@@ -1,17 +1,57 @@
 #!/bin/bash
 
-# Rollkit One-Liner Deployment Script
-# This script provides a complete deployment framework for Rollkit sequencer nodes and Celestia DA
-# Usage: bash -c "bash -i <(curl -s https://raw.githubusercontent.com/rollkit/ops-toolbox/refs/heads/main/ev-stacks/deploy-rollkit.sh)"
+# Evolve One-Liner Deployment Script
+# This script provides a complete deployment framework for Evolve sequencer nodes and Celestia DA
+# Usage: bash -c "bash -i <(curl -s https://raw.githubusercontent.com/evstack/ev-toolbox/refs/heads/main/ev-stacks/deploy-evolve.sh)"
 
 set -euo pipefail
 
 # Script metadata
 readonly SCRIPT_VERSION="1.0.0"
-readonly SCRIPT_NAME="deploy-rollkit"
-readonly REPO_URL="https://github.com/rollkit/ops-toolbox"
-readonly BASE_URL="https://raw.githubusercontent.com/rollkit/ops-toolbox/refs/heads/main/ev-stacks"
-readonly DEPLOYMENT_DIR="$HOME/rollkit-deployment"
+readonly SCRIPT_NAME="deploy-evolve"
+readonly REPO_URL="https://github.com/evstack/ev-toolbox"
+readonly GITHUB_RAW_BASE="https://raw.githubusercontent.com/evstack/ev-toolbox"
+readonly BASE_URL="$GITHUB_RAW_BASE/refs/heads/main/ev-stacks"
+readonly DEPLOYMENT_DIR="$HOME/evolve-deployment"
+
+# File and directory constants
+readonly ENV_FILE=".env"
+readonly DOCKER_COMPOSE_FILE="docker-compose.yml"
+readonly DOCKER_COMPOSE_DA_CELESTIA_FILE="docker-compose.da.celestia.yml"
+readonly GENESIS_FILE="genesis.json"
+readonly SEQUENCER_ENTRYPOINT="entrypoint.sequencer.sh"
+readonly FULLNODE_ENTRYPOINT="entrypoint.fullnode.sh"
+readonly APPD_ENTRYPOINT="entrypoint.appd.sh"
+readonly DA_ENTRYPOINT="entrypoint.da.sh"
+readonly SEQUENCER_DOCKERFILE="single-sequencer.Dockerfile"
+readonly CELESTIA_DOCKERFILE="celestia-app.Dockerfile"
+readonly LOGGING_LIB="logging.sh"
+
+# Directory structure constants
+readonly STACKS_DIR="stacks"
+readonly LIB_DIR="lib"
+readonly SINGLE_SEQUENCER_DIR="single-sequencer"
+readonly FULLNODE_DIR="fullnode"
+readonly DA_CELESTIA_DIR="da-celestia"
+
+# Container and service name patterns
+readonly SEQUENCER_CONTAINERS="(sequencer|reth-sequencer|jwt-init)"
+readonly CELESTIA_CONTAINERS="(celestia-app|celestia-node|da-permission-fix)"
+readonly SHARED_VOLUME_NAME="celestia-node-export"
+
+# Configuration constants
+readonly DEFAULT_BALANCE="0x4a47e3c12448f4ad000000"
+readonly PASSPHRASE_LENGTH=32
+readonly NAMESPACE_LENGTH=58
+readonly ETH_ADDRESS_PATTERN="^0x[a-fA-F0-9]{40}$"
+
+# Network and service endpoints
+readonly SEQUENCER_PROMETHEUS_PORT="9000"
+readonly SEQUENCER_NODE_METRICS_PORT="26660"
+readonly FULLNODE_RPC_PORT="8545"
+readonly FULLNODE_PROMETHEUS_PORT="9002"
+readonly FULLNODE_NODE_RPC_PORT="7331"
+readonly FULLNODE_NODE_METRICS_PORT="26662"
 
 # Color codes for output
 readonly RED='\033[0;31m'
@@ -806,13 +846,13 @@ setup_da_celestia_configuration() {
 			fi
 
 			# Check if it's exactly 58 characters
-			if [[ ${#da_namespace} -ne 58 ]]; then
-				echo "❌ Error: Namespace must be exactly 58 characters long. You entered ${#da_namespace} characters."
+			if [[ ${#da_namespace} -ne $NAMESPACE_LENGTH ]]; then
+				echo "❌ Error: Namespace must be exactly $NAMESPACE_LENGTH characters long. You entered ${#da_namespace} characters."
 				continue
 			fi
 
 			# Check if it contains only hexadecimal characters (0-9, a-f, A-F)
-			if ! [[ $da_namespace =~ ^[0-9a-fA-F]{58}$ ]]; then
+			if ! [[ $da_namespace =~ ^[0-9a-fA-F]{$NAMESPACE_LENGTH}$ ]]; then
 				echo "❌ Error: Namespace must contain only hexadecimal characters (0-9, a-f, A-F)."
 				continue
 			fi
@@ -856,13 +896,13 @@ create_shared_volume() {
 		log "CONFIG" "Creating shared volume for DA auth token..."
 
 		# Create the celestia-node-export volume if it doesn't exist
-		if ! docker volume inspect celestia-node-export >/dev/null 2>&1; then
-			if ! docker volume create celestia-node-export; then
-				error_exit "Failed to create shared volume celestia-node-export"
+		if ! docker volume inspect "$SHARED_VOLUME_NAME" >/dev/null 2>&1; then
+			if ! docker volume create "$SHARED_VOLUME_NAME"; then
+				error_exit "Failed to create shared volume $SHARED_VOLUME_NAME"
 			fi
-			log "SUCCESS" "Created shared volume: celestia-node-export"
+			log "SUCCESS" "Created shared volume: $SHARED_VOLUME_NAME"
 		else
-			log "INFO" "Shared volume celestia-node-export already exists"
+			log "INFO" "Shared volume $SHARED_VOLUME_NAME already exists"
 		fi
 	fi
 }
@@ -997,17 +1037,17 @@ show_deployment_status() {
 	echo "🌐 Service Endpoints:"
 	if [[ $SELECTED_SEQUENCER == "single-sequencer" ]]; then
 		echo "  📡 Single Sequencer:"
-		echo "    - Reth Prometheus Metrics: http://localhost:9000"
-		echo "    - Single Sequencer Prometheus Metrics: http://localhost:26660/metrics"
+		echo "    - Ev-reth Prometheus Metrics: http://localhost:9000"
+		echo "    - Ev-node Prometheus Metrics: http://localhost:26660/metrics"
 		echo ""
 	fi
 
 	if [[ $DEPLOY_FULLNODE == "true" ]]; then
 		echo "  🔗 Fullnode:"
-		echo "    - Reth RPC: http://localhost:8545"
-		echo "    - Reth Prometheus Metrics: http://localhost:9002"
-        echo "    - Rollkit RPC: http://localhost:7331"
-		echo "    - Rollkit Prometheus Metrics: http://localhost:26662/metrics"
+		echo "    - Ev-reth RPC: http://localhost:8545"
+		echo "    - Ev-reth Prometheus Metrics: http://localhost:9002"
+        echo "    - Ev-node RPC: http://localhost:7331"
+		echo "    - Ev-node Prometheus Metrics: http://localhost:26662/metrics"
 		echo ""
 	fi
 
@@ -1028,7 +1068,7 @@ show_usage() {
 	cat <<EOF
 Usage: $0 [OPTIONS]
 
-Rollkit One-Liner Deployment Script v$SCRIPT_VERSION
+Evolve One-Liner Deployment Script v$SCRIPT_VERSION
 
 OPTIONS:
     -h, --help              Show this help message
@@ -1050,7 +1090,7 @@ EXAMPLES:
     $0 --dry-run
 
     # One-liner remote execution
-    curl -fsSL https://raw.githubusercontent.com/rollkit/ops-toolbox/main/ev-stack/deploy-rollkit.sh | bash
+    curl -fsSL $GITHUB_RAW_BASE/main/ev-stack/deploy-evolve.sh | bash
 
 EOF
 }
@@ -1105,12 +1145,12 @@ check_existing_deployment() {
 		existing_deployment=true
 
 		# Check for existing single-sequencer stack
-		if [[ -f "$DEPLOYMENT_DIR/stacks/single-sequencer/docker-compose.yml" ]]; then
+		if [[ -f "$DEPLOYMENT_DIR/$STACKS_DIR/$SINGLE_SEQUENCER_DIR/$DOCKER_COMPOSE_FILE" ]]; then
 			existing_stacks+=("single-sequencer")
 		fi
 
 		# Check for existing da-celestia stack
-		if [[ -f "$DEPLOYMENT_DIR/stacks/da-celestia/docker-compose.yml" ]]; then
+		if [[ -f "$DEPLOYMENT_DIR/$STACKS_DIR/$DA_CELESTIA_DIR/$DOCKER_COMPOSE_FILE" ]]; then
 			existing_stacks+=("da-celestia")
 		fi
 	fi
@@ -1120,12 +1160,12 @@ check_existing_deployment() {
 		local running_containers=()
 
 		# Check for running single-sequencer containers
-		if docker ps --format "table {{.Names}}" | grep -E "(sequencer|reth-sequencer|jwt-init)" >/dev/null 2>&1; then
+		if docker ps --format "table {{.Names}}" | grep -E "$SEQUENCER_CONTAINERS" >/dev/null 2>&1; then
 			running_containers+=("single-sequencer")
 		fi
 
 		# Check for running da-celestia containers
-		if docker ps --format "table {{.Names}}" | grep -E "(celestia-app|celestia-node|da-permission-fix)" >/dev/null 2>&1; then
+		if docker ps --format "table {{.Names}}" | grep -E "$CELESTIA_CONTAINERS" >/dev/null 2>&1; then
 			running_containers+=("da-celestia")
 		fi
 
@@ -1192,7 +1232,7 @@ check_existing_deployment() {
 
 # Main deployment function
 main() {
-	log "INIT" "Starting Rollkit deployment v$SCRIPT_VERSION"
+	log "INIT" "Starting Evolve deployment v$SCRIPT_VERSION"
 
 	# Initialize log file if specified
 	if [[ -n $LOG_FILE ]]; then
@@ -1231,7 +1271,7 @@ main() {
 	prepare_deployment
 	show_deployment_status
 
-	log "SUCCESS" "Rollkit deployment setup completed successfully!"
+	log "SUCCESS" "Evolve deployment setup completed successfully!"
 
 	# Disable cleanup on successful exit
 	CLEANUP_ON_EXIT=false
@@ -1246,10 +1286,10 @@ if [[ ${BASH_SOURCE[0]:-$0} == "${0}" ]] || [[ -z ${BASH_SOURCE[0]-} ]]; then
 		log "INFO" "Detected piped execution, downloading script for interactive mode..."
 
 		# Create temporary script file
-		TEMP_SCRIPT=$(mktemp /tmp/deploy-rollkit.XXXXXX.sh)
+		TEMP_SCRIPT=$(mktemp /tmp/deploy-evolve.XXXXXX.sh)
 
 		# Download the script
-		curl -fsSL "https://raw.githubusercontent.com/rollkit/ops-toolbox/main/ev-stack/deploy-rollkit.sh" -o "$TEMP_SCRIPT" || error_exit "Failed to download script"
+		curl -fsSL "$GITHUB_RAW_BASE/main/ev-stack/deploy-evolve.sh" -o "$TEMP_SCRIPT" || error_exit "Failed to download script"
 
 		# Make it executable
 		chmod +x "$TEMP_SCRIPT"

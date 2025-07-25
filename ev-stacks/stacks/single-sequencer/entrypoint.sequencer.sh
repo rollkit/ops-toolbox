@@ -50,7 +50,7 @@ if [ ! -f "$CONFIG_HOME/config/node_key.json" ]; then
 
 	# Add required flags if environment variables are set
 	if [ -n "${EVM_SIGNER_PASSPHRASE:-}" ]; then
-		init_flags="$init_flags --rollkit.node.aggregator=true --rollkit.signer.passphrase $EVM_SIGNER_PASSPHRASE"
+		init_flags="$init_flags --evnode.node.aggregator=true --evnode.signer.passphrase $EVM_SIGNER_PASSPHRASE"
 		log "DEBUG" "EVM_SIGNER_PASSPHRASE is set, enabling aggregator mode"
 	fi
 
@@ -95,17 +95,17 @@ fi
 # Auto-retrieve genesis hash if not provided
 log "INFO" "Checking genesis hash configuration"
 if [ -z "${EVM_GENESIS_HASH:-}" ] && [ -n "${EVM_ETH_URL:-}" ]; then
-	log "INFO" "EVM_GENESIS_HASH not provided, attempting to retrieve from reth-sequencer at: $EVM_ETH_URL"
+	log "INFO" "EVM_GENESIS_HASH not provided, attempting to retrieve from ev-reth-sequencer at: $EVM_ETH_URL"
 
-	# Wait for reth-sequencer to be ready (max 60 seconds)
+	# Wait for ev-reth-sequencer to be ready (max 60 seconds)
 	retry_count=0
 	max_retries=12
 	while [ $retry_count -lt $max_retries ]; do
 		if curl -s --connect-timeout 5 "$EVM_ETH_URL" >/dev/null 2>&1; then
-			log "SUCCESS" "Reth-sequencer is ready, retrieving genesis hash..."
+			log "SUCCESS" "Ev-reth-sequencer is ready, retrieving genesis hash..."
 			break
 		fi
-		log "INFO" "Waiting for reth-sequencer to be ready... (attempt $((retry_count + 1))/$max_retries)"
+		log "INFO" "Waiting for ev-reth-sequencer to be ready... (attempt $((retry_count + 1))/$max_retries)"
 		sleep 5
 		retry_count=$((retry_count + 1))
 	done
@@ -115,7 +115,7 @@ if [ -z "${EVM_GENESIS_HASH:-}" ] && [ -n "${EVM_ETH_URL:-}" ]; then
 		log "WARNING" "Proceeding without auto-retrieved genesis hash..."
 	else
 		# Retrieve genesis block hash using curl and shell parsing
-		log "NETWORK" "Fetching genesis block from reth-sequencer..."
+		log "NETWORK" "Fetching genesis block from ev-reth-sequencer..."
 		genesis_response=$(curl -s -X POST -H "Content-Type: application/json" \
 			--data '{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["0x0", false],"id":1}' \
 			"$EVM_ETH_URL" 2>/dev/null)
@@ -133,7 +133,7 @@ if [ -z "${EVM_GENESIS_HASH:-}" ] && [ -n "${EVM_ETH_URL:-}" ]; then
 				log "DEBUG" "Response: $genesis_response"
 			fi
 		else
-			log "WARNING" "Failed to retrieve genesis block from reth-sequencer"
+			log "WARNING" "Failed to retrieve genesis block from ev-reth-sequencer"
 		fi
 	fi
 elif [ -n "$EVM_GENESIS_HASH" ]; then
@@ -173,34 +173,34 @@ if [ -n "${EVM_ETH_URL:-}" ]; then
 fi
 
 if [ -n "${EVM_BLOCK_TIME:-}" ]; then
-	default_flags="$default_flags --rollkit.node.block_time $EVM_BLOCK_TIME"
+	default_flags="$default_flags --evnode.node.block_time $EVM_BLOCK_TIME"
 	log "DEBUG" "Added block time flag: $EVM_BLOCK_TIME"
 fi
 
 if [ -n "${EVM_SIGNER_PASSPHRASE:-}" ]; then
-	default_flags="$default_flags --rollkit.node.aggregator=true --rollkit.signer.passphrase $EVM_SIGNER_PASSPHRASE"
+	default_flags="$default_flags --evnode.node.aggregator=true --evnode.signer.passphrase $EVM_SIGNER_PASSPHRASE"
 	log "DEBUG" "Added aggregator and signer passphrase flags"
 fi
 
 # Conditionally add DA-related flags
 log "INFO" "Configuring Data Availability (DA) settings"
 if [ -n "${DA_ADDRESS:-}" ]; then
-	default_flags="$default_flags --rollkit.da.address $DA_ADDRESS"
+	default_flags="$default_flags --evnode.da.address $DA_ADDRESS"
 	log "DEBUG" "Added DA address flag: $DA_ADDRESS"
 fi
 
 if [ -n "${DA_AUTH_TOKEN:-}" ]; then
-	default_flags="$default_flags --rollkit.da.auth_token $DA_AUTH_TOKEN"
+	default_flags="$default_flags --evnode.da.auth_token $DA_AUTH_TOKEN"
 	log "DEBUG" "Added DA auth token flag"
 fi
 
 if [ -n "${DA_NAMESPACE:-}" ]; then
-	default_flags="$default_flags --rollkit.da.namespace $DA_NAMESPACE"
+	default_flags="$default_flags --evnode.da.namespace $DA_NAMESPACE"
 	log "DEBUG" "Added DA namespace flag: $DA_NAMESPACE"
 fi
 
 if [ -n "${DA_START_HEIGHT:-}" ]; then
-	default_flags="$default_flags --rollkit.da.start_height $DA_START_HEIGHT"
+	default_flags="$default_flags --evnode.da.start_height $DA_START_HEIGHT"
 	log "DEBUG" "Added DA start height flag: $DA_START_HEIGHT"
 fi
 

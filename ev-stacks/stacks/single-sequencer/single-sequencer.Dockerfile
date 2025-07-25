@@ -1,3 +1,3 @@
-FROM ghcr.io/rollkit/rollkit-evm-single:main
+FROM ghcr.io/evstack/ev-node-evm-single:main
 
 RUN apk add curl
