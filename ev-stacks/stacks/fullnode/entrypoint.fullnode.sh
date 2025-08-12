@@ -92,7 +92,7 @@ RESPONSE=$(curl -sX POST \
 	-H "Content-Type: application/json" \
 	-H "Connect-Protocol-Version: 1" \
 	-d "{}" \
-	http://ev-node-single-sequencer:7331/evnode.v1.P2PService/GetNetInfo)
+	http://single-sequencer:7331/evnode.v1.P2PService/GetNetInfo)
 
 if [ $? -eq 0 ] && [ -n "${RESPONSE}" ]; then
 	log "SUCCESS" "Received response from sequencer"
@@ -162,14 +162,9 @@ fi
 
 # Build start flags array
 log "INFO" "Building startup configuration flags"
-default_flags="--full"
+default_flags=""
 
 # Add required flags if environment variables are set
-if [ -n "${CHAIN_ID:-}" ]; then
-	default_flags="${default_flags} --chain_id ${CHAIN_ID}"
-	log "DEBUG" "Added CHAIN ID flag"
-fi
-
 if [ -n "${EVM_JWT_SECRET:-}" ]; then
 	default_flags="${default_flags} --evm.jwt-secret ${EVM_JWT_SECRET}"
 	log "DEBUG" "Added JWT secret flag"
@@ -192,29 +187,34 @@ fi
 
 log "INFO" "Configuring Data Availability (DA) settings"
 if [ -n "${SEQUENCER_P2P_INFO:-}" ]; then
-	default_flags="${default_flags} --evnode.p2p.peers ${SEQUENCER_P2P_INFO}"
+	default_flags="${default_flags} --rollkit.p2p.peers ${SEQUENCER_P2P_INFO}"
 	log "DEBUG" "Added p2p peer flag: ${SEQUENCER_P2P_INFO}"
 fi
 
 # Conditionally add DA-related flags
 log "INFO" "Configuring Data Availability (DA) settings"
 if [ -n "${DA_ADDRESS:-}" ]; then
-	default_flags="${default_flags} --evnode.da.address ${DA_ADDRESS}"
+	default_flags="${default_flags} --rollkit.da.address ${DA_ADDRESS}"
 	log "DEBUG" "Added DA address flag: ${DA_ADDRESS}"
 fi
 
 if [ -n "${DA_AUTH_TOKEN:-}" ]; then
-	default_flags="${default_flags} --evnode.da.auth_token ${DA_AUTH_TOKEN}"
+	default_flags="${default_flags} --rollkit.da.auth_token ${DA_AUTH_TOKEN}"
 	log "DEBUG" "Added DA auth token flag"
 fi
 
-if [ -n "${DA_NAMESPACE:-}" ]; then
-	default_flags="${default_flags} --evnode.da.namespace ${DA_NAMESPACE}"
-	log "DEBUG" "Added DA namespace flag: ${DA_NAMESPACE}"
+if [ -n "${DA_DATA_NAMESPACE:-}" ]; then
+	default_flags="${default_flags} --rollkit.da.data_namespace ${DA_DATA_NAMESPACE}"
+	log "DEBUG" "Added DA data namespace flag: ${DA_DATA_NAMESPACE}"
+fi
+
+if [ -n "${DA_HEADER_NAMESPACE:-}" ]; then
+	default_flags="${default_flags} --rollkit.da.header_namespace ${DA_HEADER_NAMESPACE}"
+	log "DEBUG" "Added DA header namespace flag: ${DA_HEADER_NAMESPACE}"
 fi
 
 if [ -n "${DA_START_HEIGHT:-}" ]; then
-	default_flags="${default_flags} --evnode.da.start_height ${DA_START_HEIGHT}"
+	default_flags="${default_flags} --rollkit.da.start_height ${DA_START_HEIGHT}"
 	log "DEBUG" "Added DA start height flag: ${DA_START_HEIGHT}"
 fi
 

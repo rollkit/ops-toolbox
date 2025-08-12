@@ -1,4 +1,4 @@
-FROM ghcr.io/celestiaorg/celestia-app-standalone:v4.0.10-mocha
+FROM ghcr.io/celestiaorg/celestia-app-standalone:v5.0.1-mocha
 
 USER root
 

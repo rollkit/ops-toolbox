@@ -200,7 +200,7 @@ Celestia modular data availability layer integration:
 
 A complete single-node EVM sequencer stack including:
 
-- **Ev-reth**: EVM execution layer using Lumen (Reth fork)
+- **Ev-reth**: EVM execution layer (Reth fork)
 - **Ev-node**: Consensus and block production
 
 **Services:**
@@ -308,7 +308,8 @@ Each stack has its own `.env` file with specific configuration:
 ```bash
 CHAIN_ID="1234"                           # Your chain's unique ID
 EVM_SIGNER_PASSPHRASE="secure_password"   # Sequencer signing key protection
-DA_NAMESPACE="your_namespace_hex"         # Celestia namespace
+DA_HEADER_NAMESPACE="your_header_namespace_hex"  # Celestia header namespace
+DA_DATA_NAMESPACE="your_data_namespace_hex"      # Celestia data namespace
 DA_START_HEIGHT="6853148"                 # Starting block on Celestia
 DA_RPC_PORT="26658"                       # Celestia RPC port
 SEQUENCER_EV_RETH_PROMETHEUS_PORT="9000"     # Metrics port for Ev-reth
@@ -317,7 +318,8 @@ SEQUENCER_EV_NODE_PROMETHEUS_PORT="26660" # Metrics port for Ev-node
 
 **Celestia DA**:
 ```bash
-DA_NAMESPACE="your_namespace_hex"         # Must match sequencer namespace
+DA_HEADER_NAMESPACE="your_header_namespace_hex"  # Must match sequencer header namespace
+DA_DATA_NAMESPACE="your_data_namespace_hex"      # Must match sequencer data namespace
 CELESTIA_NETWORK="mocha-4"                # Celestia testnet
 CELESTIA_NODE_TAG="latest"                # Docker image version
 DA_CORE_IP="consensus.mocha-4.celestia-mocha.com"  # Celestia consensus endpoint
@@ -366,7 +368,7 @@ After deployment, you'll have access to these endpoints:
 You can edit the `.env` files to change:
 - **Chain ID**: Change `CHAIN_ID` to your desired value
 - **Block time**: Modify `EVM_BLOCK_TIME` (default: 500ms)
-- **DA settings**: Update `DA_START_HEIGHT` or `DA_NAMESPACE`
+- **DA settings**: Update `DA_START_HEIGHT`, `DA_HEADER_NAMESPACE`, or `DA_DATA_NAMESPACE`
 - **Ports**: Change port mappings to avoid conflicts
 
 ### 2. Adding Custom Genesis

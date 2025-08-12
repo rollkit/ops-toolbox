@@ -35,7 +35,8 @@ services:
     entrypoint: /bin/sh -c
     command:
       - |
-          lumen node \
+          ev-reth node \
+          --ev-reth.enable \
           --engine.persistence-threshold 0 \
           --engine.memory-block-buffer-target 0 \
           --chain /root/genesis.json \
@@ -70,7 +71,7 @@ services:
       ev-reth-fullnode:
         condition: service_started
     volumes:
-      - fullnode-data:/root/.evm-single
+      - ev-node-fullnode-data:/root/.evm-single
       - jwttoken-fullnode:/root/jwt:ro
       - celestia-node-export:/volumes/da_export:ro
       - sequencer-export:/volumes/sequencer_export
@@ -78,8 +79,8 @@ services:
       - ../../lib/logging.sh:/usr/local/lib/logging.sh:ro
     command:
       - start
-      - --evnode.instrumentation.prometheus
-      - --evnode.instrumentation.prometheus_listen_addr=:26660
+      - --rollkit.instrumentation.prometheus
+      - --rollkit.instrumentation.prometheus_listen_addr=:26660
     environment:
       - EVM_ENGINE_URL=http://ev-reth-fullnode:8551
       - EVM_ETH_URL=http://ev-reth-fullnode:8545
@@ -87,7 +88,8 @@ services:
       - EVM_BLOCK_TIME=500ms
       - DA_BLOCK_TIME=30s
       - DA_ADDRESS=http://celestia-node:${DA_RPC_PORT}
-      - DA_NAMESPACE=${DA_NAMESPACE}
+      - DA_HEADER_NAMESPACE=${DA_HEADER_NAMESPACE}
+      - DA_DATA_NAMESPACE=${DA_DATA_NAMESPACE}
       - DA_AUTH_TOKEN_PATH=/volumes/da_export/auth_token
       - DA_START_HEIGHT=${DA_START_HEIGHT}
     networks:

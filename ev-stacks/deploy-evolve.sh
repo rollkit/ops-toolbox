@@ -7,7 +7,7 @@
 set -euo pipefail
 
 # Script metadata
-readonly SCRIPT_VERSION="1.0.0"
+readonly SCRIPT_VERSION="1.1.0"
 readonly SCRIPT_NAME="deploy-evolve"
 readonly REPO_URL="https://github.com/evstack/ev-toolbox"
 readonly GITHUB_RAW_BASE="https://raw.githubusercontent.com/evstack/ev-toolbox"
@@ -717,24 +717,36 @@ setup_sequencer_configuration() {
 	if [[ $DEPLOY_DA_CELESTIA == "true" ]]; then
 		log "CONFIG" "Configuring single-sequencer for DA Celestia integration..."
 
-		# Get DA_NAMESPACE from da-celestia .env file
+		# Get DA_HEADER_NAMESPACE and DA_DATA_NAMESPACE from da-celestia .env file
 		local da_celestia_env="$DEPLOYMENT_DIR/stacks/da-celestia/.env"
 		if [[ -f $da_celestia_env ]]; then
-			local da_namespace=$(grep "^DA_NAMESPACE=" "$da_celestia_env" | cut -d'=' -f2 | tr -d '"')
+			local da_header_namespace=$(grep "^DA_HEADER_NAMESPACE=" "$da_celestia_env" | cut -d'=' -f2 | tr -d '"')
+			local da_data_namespace=$(grep "^DA_DATA_NAMESPACE=" "$da_celestia_env" | cut -d'=' -f2 | tr -d '"')
 
-			if [[ -n $da_namespace ]]; then
-				# Add or update DA_NAMESPACE in single-sequencer .env
-				update_env_var "$env_file" "DA_NAMESPACE" "$da_namespace"
-				log "SUCCESS" "DA_NAMESPACE set to: $da_namespace"
+			if [[ -n $da_header_namespace ]]; then
+				# Add or update DA_HEADER_NAMESPACE in single-sequencer .env
+				update_env_var "$env_file" "DA_HEADER_NAMESPACE" "$da_header_namespace"
+				log "SUCCESS" "DA_HEADER_NAMESPACE set to: $da_header_namespace"
 			else
-				log "WARN" "DA_NAMESPACE is empty in da-celestia .env file. Single-sequencer may show warnings."
-				# Still add the empty DA_NAMESPACE to single-sequencer .env to avoid undefined variable warnings
-				update_env_var "$env_file" "DA_NAMESPACE" ""
+				log "WARN" "DA_HEADER_NAMESPACE is empty in da-celestia .env file. Single-sequencer may show warnings."
+				# Still add the empty DA_HEADER_NAMESPACE to single-sequencer .env to avoid undefined variable warnings
+				update_env_var "$env_file" "DA_HEADER_NAMESPACE" ""
+			fi
+
+			if [[ -n $da_data_namespace ]]; then
+				# Add or update DA_DATA_NAMESPACE in single-sequencer .env
+				update_env_var "$env_file" "DA_DATA_NAMESPACE" "$da_data_namespace"
+				log "SUCCESS" "DA_DATA_NAMESPACE set to: $da_data_namespace"
+			else
+				log "WARN" "DA_DATA_NAMESPACE is empty in da-celestia .env file. Single-sequencer may show warnings."
+				# Still add the empty DA_DATA_NAMESPACE to single-sequencer .env to avoid undefined variable warnings
+				update_env_var "$env_file" "DA_DATA_NAMESPACE" ""
 			fi
 		else
-			log "WARN" "DA-Celestia .env file not found. Adding empty DA_NAMESPACE to prevent warnings."
-			# Add empty DA_NAMESPACE to single-sequencer .env to avoid undefined variable warnings
-			update_env_var "$env_file" "DA_NAMESPACE" ""
+			log "WARN" "DA-Celestia .env file not found. Adding empty DA namespaces to prevent warnings."
+			# Add empty DA namespaces to single-sequencer .env to avoid undefined variable warnings
+			update_env_var "$env_file" "DA_HEADER_NAMESPACE" ""
+			update_env_var "$env_file" "DA_DATA_NAMESPACE" ""
 		fi
 	fi
 
@@ -787,28 +799,77 @@ setup_fullnode_configuration() {
 	if [[ $DEPLOY_DA_CELESTIA == "true" ]]; then
 		log "CONFIG" "Configuring fullnode for DA Celestia integration..."
 
-		# Get DA_NAMESPACE from da-celestia .env file
+		# Get DA_HEADER_NAMESPACE and DA_DATA_NAMESPACE from da-celestia .env file
 		local da_celestia_env="$DEPLOYMENT_DIR/stacks/da-celestia/.env"
 		if [[ -f $da_celestia_env ]]; then
-			local da_namespace=$(grep "^DA_NAMESPACE=" "$da_celestia_env" | cut -d'=' -f2 | tr -d '"')
+			local da_header_namespace=$(grep "^DA_HEADER_NAMESPACE=" "$da_celestia_env" | cut -d'=' -f2 | tr -d '"')
+			local da_data_namespace=$(grep "^DA_DATA_NAMESPACE=" "$da_celestia_env" | cut -d'=' -f2 | tr -d '"')
 
-			if [[ -n $da_namespace ]]; then
-				# Add or update DA_NAMESPACE in fullnode .env
-				update_env_var "$env_file" "DA_NAMESPACE" "$da_namespace"
-				log "SUCCESS" "DA_NAMESPACE set to: $da_namespace"
+			if [[ -n $da_header_namespace ]]; then
+				# Add or update DA_HEADER_NAMESPACE in fullnode .env
+				update_env_var "$env_file" "DA_HEADER_NAMESPACE" "$da_header_namespace"
+				log "SUCCESS" "DA_HEADER_NAMESPACE set to: $da_header_namespace"
 			else
-				log "WARN" "DA_NAMESPACE is empty in da-celestia .env file. Fullnode may show warnings."
-				# Still add the empty DA_NAMESPACE to fullnode .env to avoid undefined variable warnings
-				update_env_var "$env_file" "DA_NAMESPACE" ""
+				log "WARN" "DA_HEADER_NAMESPACE is empty in da-celestia .env file. Fullnode may show warnings."
+				# Still add the empty DA_HEADER_NAMESPACE to fullnode .env to avoid undefined variable warnings
+				update_env_var "$env_file" "DA_HEADER_NAMESPACE" ""
+			fi
+
+			if [[ -n $da_data_namespace ]]; then
+				# Add or update DA_DATA_NAMESPACE in fullnode .env
+				update_env_var "$env_file" "DA_DATA_NAMESPACE" "$da_data_namespace"
+				log "SUCCESS" "DA_DATA_NAMESPACE set to: $da_data_namespace"
+			else
+				log "WARN" "DA_DATA_NAMESPACE is empty in da-celestia .env file. Fullnode may show warnings."
+				# Still add the empty DA_DATA_NAMESPACE to fullnode .env to avoid undefined variable warnings
+				update_env_var "$env_file" "DA_DATA_NAMESPACE" ""
 			fi
 		else
-			log "WARN" "DA-Celestia .env file not found. Adding empty DA_NAMESPACE to prevent warnings."
-			# Add empty DA_NAMESPACE to fullnode .env to avoid undefined variable warnings
-			update_env_var "$env_file" "DA_NAMESPACE" ""
+			log "WARN" "DA-Celestia .env file not found. Adding empty DA namespaces to prevent warnings."
+			# Add empty DA namespaces to fullnode .env to avoid undefined variable warnings
+			update_env_var "$env_file" "DA_HEADER_NAMESPACE" ""
+			update_env_var "$env_file" "DA_DATA_NAMESPACE" ""
 		fi
 	fi
 
 	log "SUCCESS" "Fullnode configuration setup completed"
+}
+
+# Helper function to prompt and validate namespace input
+prompt_namespace_input() {
+	local namespace_type="$1"
+	local env_var_name="$2"
+	local env_file="$3"
+	local example_value="$4"
+
+	echo ""
+	echo "🌌 $namespace_type namespace is required for Celestia data availability."
+	echo "This should be an encoded string identifier used to categorize and retrieve ${namespace_type,,} blobs."
+	echo "Example: '$example_value'"
+
+	while true; do
+		echo -n "Please enter the ${namespace_type,,} namespace: "
+		read -r namespace_value
+
+		# Validate namespace format
+		if [[ -z "$namespace_value" ]]; then
+			echo "❌ Error: $namespace_type namespace cannot be empty."
+			continue
+		fi
+
+		# Check if it's a valid encoded string
+		if [[ $namespace_value =~ ^[a-zA-Z0-9_-]+$ ]]; then
+			echo "✅ Valid ${namespace_type,,} namespace format."
+			break
+		else
+			echo "❌ Error: Namespace must be an encoded string with alphanumeric characters, underscores, and hyphens."
+			continue
+		fi
+	done
+
+	# Update namespace in .env file
+	update_env_var "$env_file" "$env_var_name" "$namespace_value"
+	log "SUCCESS" "DA ${namespace_type,,} namespace set to: $namespace_value"
 }
 
 # Configuration management for da-celestia
@@ -828,43 +889,14 @@ setup_da_celestia_configuration() {
 		error_exit "DA-Celestia environment file is not readable: $env_file"
 	fi
 
-	# Check for missing DA_NAMESPACE and prompt user
-	if grep -q "^DA_NAMESPACE=$" "$env_file" || ! grep -q "^DA_NAMESPACE=" "$env_file"; then
-		echo ""
-		echo "🌌 Namespace is required for Celestia data availability."
-		echo "This should be a 29-byte identifier (entered as a 58-character hex string) used to categorize and retrieve blobs, composed of a 1-byte version and a 28-byte ID. (Full documentation: https://celestiaorg.github.io/celestia-app/specs/namespace.html)."
-		echo "Example: '000000000000000000000000000000000000002737d4d967c7ca526dd5'"
+	# Check for missing DA_HEADER_NAMESPACE and prompt user
+	if grep -q "^DA_HEADER_NAMESPACE=$" "$env_file" || ! grep -q "^DA_HEADER_NAMESPACE=" "$env_file"; then
+		prompt_namespace_input "Header" "DA_HEADER_NAMESPACE" "$env_file" "namespace_test_header"
+	fi
 
-		while true; do
-			echo -n "Please enter the namespace (58-character hex string): "
-			read -r da_namespace
-
-			# Validate DA namespace format
-			if [[ -z "$da_namespace" ]]; then
-				echo "❌ Error: Namespace cannot be empty."
-				continue
-			fi
-
-			# Check if it's exactly 58 characters
-			if [[ ${#da_namespace} -ne $NAMESPACE_LENGTH ]]; then
-				echo "❌ Error: Namespace must be exactly $NAMESPACE_LENGTH characters long. You entered ${#da_namespace} characters."
-				continue
-			fi
-
-			# Check if it contains only hexadecimal characters (0-9, a-f, A-F)
-			if ! [[ $da_namespace =~ ^[0-9a-fA-F]{$NAMESPACE_LENGTH}$ ]]; then
-				echo "❌ Error: Namespace must contain only hexadecimal characters (0-9, a-f, A-F)."
-				continue
-			fi
-
-			# All validations passed
-			echo "✅ Valid namespace format."
-			break
-		done
-
-		# Update DA_NAMESPACE in .env file
-		update_env_var "$env_file" "DA_NAMESPACE" "$da_namespace"
-		log "SUCCESS" "DA namespace set to: $da_namespace"
+	# Check for missing DA_DATA_NAMESPACE and prompt user
+	if grep -q "^DA_DATA_NAMESPACE=$" "$env_file" || ! grep -q "^DA_DATA_NAMESPACE=" "$env_file"; then
+		prompt_namespace_input "Data" "DA_DATA_NAMESPACE" "$env_file" "namespace_test_data"
 	fi
 
 	log "SUCCESS" "DA-Celestia configuration setup completed"
@@ -874,7 +906,7 @@ setup_da_celestia_configuration() {
 setup_configuration() {
 	log "CONFIG" "Setting up configuration..."
 
-	# Setup da-celestia configuration first if deployed (so DA_NAMESPACE is available for single-sequencer and fullnode)
+	# Setup da-celestia configuration first if deployed (so DA namespaces are available for single-sequencer and fullnode)
 	if [[ $DEPLOY_DA_CELESTIA == "true" ]]; then
 		setup_da_celestia_configuration
 	fi
