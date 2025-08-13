@@ -17,25 +17,26 @@ services:
         openssl rand -hex 32 | tr -d '\n' > /jwt/jwt.hex;
       fi"
 
-  reth-fullnode:
-    container_name: reth-fullnode
-    image: ghcr.io/rollkit/lumen:latest
+  ev-reth-fullnode:
+    container_name: ev-reth-fullnode
+    image: ghcr.io/evstack/ev-reth:latest
     depends_on:
       jwt-init-fullnode:
         condition: service_completed_successfully
     env_file: .env
     ports:
-      - $FULLNODE_RETH_RPC_PORT:8545
-      - $FULLNODE_RETH_PROMETHEUS_PORT:9001
+      - $FULLNODE_EV_RETH_RPC_PORT:8545
+      - $FULLNODE_EV_RETH_PROMETHEUS_PORT:9001
     restart: always
     volumes:
       - ../single-sequencer/genesis.json:/root/genesis.json:ro
       - jwttoken-fullnode:/root/jwt:ro
-      - reth-fullnode-data:/root/reth
+      - ev-reth-fullnode-data:/root/reth
     entrypoint: /bin/sh -c
     command:
       - |
-          lumen node \
+          ev-reth node \
+          --ev-reth.enable \
           --engine.persistence-threshold 0 \
           --engine.memory-block-buffer-target 0 \
           --chain /root/genesis.json \
@@ -58,19 +59,19 @@ services:
     networks:
       - evstack_shared
 
-  fullnode:
-    container_name: fullnode
-    image: localhost/rollkit-evm-single:rolling
+  ev-node-fullnode:
+    container_name: ev-node-fullnode
+    image: localhost/ev-node-evm-single:rolling
     env_file: .env
     ports:
-      - $FULLNODE_ROLLKIT_RPC_PORT:7331
-      - $FULLNODE_ROLLKIT_PROMETHEUS_PORT:26660
+      - $FULLNODE_EV_NODE_RPC_PORT:7331
+      - $FULLNODE_EV_NODE_PROMETHEUS_PORT:26660
     restart: always
     depends_on:
-      reth-fullnode:
+      ev-reth-fullnode:
         condition: service_started
     volumes:
-      - fullnode-data:/root/.evm-single
+      - ev-node-fullnode-data:/root/.evm-single
       - jwttoken-fullnode:/root/jwt:ro
       - celestia-node-export:/volumes/da_export:ro
       - sequencer-export:/volumes/sequencer_export
@@ -81,13 +82,14 @@ services:
       - --rollkit.instrumentation.prometheus
       - --rollkit.instrumentation.prometheus_listen_addr=:26660
     environment:
-      - EVM_ENGINE_URL=http://reth-fullnode:8551
-      - EVM_ETH_URL=http://reth-fullnode:8545
+      - EVM_ENGINE_URL=http://ev-reth-fullnode:8551
+      - EVM_ETH_URL=http://ev-reth-fullnode:8545
       - EVM_JWT_PATH=/root/jwt/jwt.hex
       - EVM_BLOCK_TIME=500ms
       - DA_BLOCK_TIME=30s
       - DA_ADDRESS=http://celestia-node:${DA_RPC_PORT}
-      - DA_NAMESPACE=${DA_NAMESPACE}
+      - DA_HEADER_NAMESPACE=${DA_HEADER_NAMESPACE}
+      - DA_DATA_NAMESPACE=${DA_DATA_NAMESPACE}
       - DA_AUTH_TOKEN_PATH=/volumes/da_export/auth_token
       - DA_START_HEIGHT=${DA_START_HEIGHT}
     networks:
@@ -96,9 +98,9 @@ services:
 volumes:
   jwttoken-fullnode:
     driver: local
-  reth-fullnode-data:
+  ev-reth-fullnode-data:
     driver: local
-  fullnode-data:
+  ev-node-fullnode-data:
     driver: local
   celestia-node-export:
     external: true

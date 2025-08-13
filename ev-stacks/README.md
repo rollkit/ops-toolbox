@@ -1,10 +1,10 @@
-# EV-Stacks: Easy Rollkit deployments
+# EV-Stacks: Easy Evolve deployments
 
-A collection of Docker-based deployment stacks for Rollkit chains.
+A collection of Docker-based deployment stacks for Evolve chains.
 
 ## Overview
 
-EV-Stacks provides pre-configured deployment stacks for running EVM-compatible blockchain infrastructure with different configurations:
+EV-Stacks provides pre-configured deployment stacks for running Evolve chains with different configurations:
 
 - **Single Sequencer**: A single-node sequencer setup for development and testing
 - **Full Node**: Additional network connectivity and redundancy
@@ -15,7 +15,9 @@ EV-Stacks provides pre-configured deployment stacks for running EVM-compatible b
 Before deploying EV-Stacks, ensure your system meets the following requirements:
 
 ### Required Software
+
 - **Docker and Docker Compose**: Version 20.10 or later
+
   ```bash
   # Install Docker (Ubuntu/Debian)
   curl -fsSL https://get.docker.com -o get-docker.sh
@@ -27,15 +29,18 @@ Before deploying EV-Stacks, ensure your system meets the following requirements:
   ```
 
 ### System Requirements
+
 - **Operating System**: Linux (Ubuntu 20.04+ recommended), macOS, or Windows with WSL2
 - **Memory**: 24GB RAM
 - **Storage**: At least 500GB free disk space
 - **Network**: Stable internet connection with 1Gbps
 
 ### Celestia DA Requirements
+
 If deploying with Celestia as the Data Availability layer, additional configuration is required:
 
 - **BBR Congestion Control**: Must be enabled on the server for optimal Celestia network performance
+
   ```bash
   # Check if BBR is available
   sysctl net.ipv4.tcp_available_congestion_control
@@ -54,6 +59,7 @@ If deploying with Celestia as the Data Availability layer, additional configurat
   - The deployment will show you the address to fund after setup
 
 ### Ethereum Addresses
+
 Ethereum addresses that will receive initial token balances in the genesis block. You must possess the private keys for these addresses to make transactions on your chain
 
 **Creating Ethereum Wallets with Foundry:**
@@ -80,12 +86,12 @@ Deploy a complete EVM stack with one command:
 
 ```bash
 # One-liner deployment (interactive)
-bash -c "bash -i <(curl -s https://raw.githubusercontent.com/rollkit/ops-toolbox/main/ev-stack/deploy-rollkit.sh)"
+bash -c "bash -i <(curl -s https://raw.githubusercontent.com/evstack/ev-toolbox/main/ev-stack/deploy-evolve.sh)"
 
 # Or download and run locally
-wget https://raw.githubusercontent.com/rollkit/ops-toolbox/main/ev-stack/deploy-rollkit.sh
-chmod +x deploy-rollkit.sh
-./deploy-rollkit.sh
+wget https://raw.githubusercontent.com/evstack/ev-toolbox/main/ev-stack/deploy-evolve.sh
+chmod +x deploy-evolve.sh
+./deploy-evolve.sh
 ```
 
 The deployment script will guide you through:
@@ -102,7 +108,7 @@ The deployment script will guide you through:
 #### 1. Start the Data Availability Layer First
 
 ```bash
-cd $HOME/rollkit-deployment/stacks/da-celestia
+cd $HOME/evolve-deployment/stacks/da-celestia
 docker compose up -d
 ```
 
@@ -124,7 +130,7 @@ docker exec -it celestia-node cel-key list --node.type=light
 #### 2. Start the Single Sequencer
 
 ```bash
-cd $HOME/rollkit-deployment/stacks/single-sequencer
+cd $HOME/evolve-deployment/stacks/single-sequencer
 docker compose up -d
 ```
 
@@ -137,7 +143,7 @@ docker compose logs -f
 #### 3. Start the Fullnode (if deployed)
 
 ```bash
-cd $HOME/rollkit-deployment/stacks/fullnode
+cd $HOME/evolve-deployment/stacks/fullnode
 docker compose up -d
 ```
 
@@ -152,7 +158,7 @@ docker compose logs -f
 The deployment script organizes files in the following structure:
 
 ```
-$HOME/rollkit-deployment/
+$HOME/evolve-deployment/
 ├── lib/
 │   └── logging.sh              # Centralized logging functions
 └── stacks/
@@ -167,9 +173,9 @@ After all services are running, verify the deployment:
 
 ```bash
 # Check all services are running
-cd $HOME/rollkit-deployment/stacks/da-celestia && docker compose ps
-cd $HOME/rollkit-deployment/stacks/single-sequencer && docker compose ps
-cd $HOME/rollkit-deployment/stacks/fullnode && docker compose ps  # if deployed
+cd $HOME/evolve-deployment/stacks/da-celestia && docker compose ps
+cd $HOME/evolve-deployment/stacks/single-sequencer && docker compose ps
+cd $HOME/evolve-deployment/stacks/fullnode && docker compose ps  # if deployed
 
 # Test the RPC endpoints
 curl -X POST -H "Content-Type: application/json" \
@@ -195,18 +201,17 @@ Celestia modular data availability layer integration:
 
 - Celestia Light Node RPC: `http://localhost:26658`
 
-
 ### 🔗 Single Sequencer (`stacks/single-sequencer/`)
 
 A complete single-node EVM sequencer stack including:
 
-- **Reth Sequencer**: EVM execution layer using Lumen (Reth fork)
-- **Rollkit Sequencer**: Consensus and block production
+- **Ev-reth**: EVM execution layer (Reth fork)
+- **Ev-node**: Consensus and block production
 
 **Services:**
 
-- Reth Prometheus Metrics: `http://localhost:9000`
-- Rollkit Prometheus Metrics: `http://localhost:26660/metrics`
+- Ev-reth Prometheus Metrics: `http://localhost:9000`
+- Ev-node Prometheus Metrics: `http://localhost:26660/metrics`
 
 ### 🌐 Full Node (`stacks/fullnode/`)
 
@@ -217,56 +222,63 @@ Additional full node deployment for enhanced network connectivity:
 
 **Services:**
 
-- Reth RPC: `http://localhost:8545`
-- Reth Prometheus Metrics: `http://localhost:9002`
-- Rollkit RPC: `http://localhost:7331`
-- Rollkit Prometheus Metrics: `http://localhost:26662/metrics`
+- Ev-reth RPC: `http://localhost:8545`
+- Ev-reth Prometheus Metrics: `http://localhost:9002`
+- Ev-node RPC: `http://localhost:7331`
+- Ev-node Prometheus Metrics: `http://localhost:26662/metrics`
 
 ## Configuration
 
 The script automatically configures:
 
 #### Chain ID
+
 - **What it is**: A unique identifier for your chain
 - **Example**: `1234` for development, or your custom ID
 - **Why needed**: Prevents transaction replay attacks between different chains
 
 #### EVM Signer Passphrase
+
 - **What it is**: A password that protects the sequencer's signing key
 - **Generation**: Automatically generated using `openssl rand -base64 32`
 - **Purpose**: Secures the private key used to sign blocks
 
 #### DA Namespace
+
 - **What it is**: A unique identifier for your data on Celestia
 - **Format**: 58-character hex string representing a 29-byte identifier (e.g., `000000000000000000000000000000000000002737d4d967c7ca526dd5`)
 - **Purpose**: Separates your chain's data from other chains using Celestia
 
 #### JWT Tokens
-- **What they are**: Secure tokens for communication between Reth and Rollkit
+
+- **What they are**: Secure tokens for communication between Ev-Reth and Ev-node
 - **Generation**: Automatically created using `openssl rand -hex 32`
 - **Purpose**: Authenticates internal API calls between components
 
 ## What Gets Created
 
 ### 1. Docker Networks
+
 - **evstack_shared**: A bridge network connecting all components
 - **Purpose**: Allows containers to communicate using service names
 
 ### 2. Docker Volumes
+
 - **Persistent storage** for blockchain data, configuration, and keys
 - **Shared volumes** for passing authentication tokens between services
 - **Examples**:
   - `reth-sequencer-data`: Blockchain state and transaction data
-  - `sequencer-data`: Rollkit configuration and keys
+  - `sequencer-data`: Ev-node configuration and keys
   - `celestia-node-data`: Celestia light node data
   - `celestia-node-export`: Shared authentication tokens
 
 ### 3. Docker Services
 
 #### Single Sequencer Stack
+
 1. **jwt-init-sequencer**: Creates JWT tokens for secure communication
-2. **reth-sequencer**: EVM execution layer (Lumen/Reth)
-3. **single-sequencer**: Rollkit consensus layer
+2. **reth-sequencer**: EVM execution layer (Ev-reth)
+3. **single-sequencer**: Ev-node consensus layer
    - **Entrypoint automation**:
      - Initializes sequencer configuration with signer passphrase if not present
      - Exports genesis.json to shared volume for fullnode access
@@ -274,6 +286,7 @@ The script automatically configures:
      - Imports JWT tokens and DA auth tokens from shared volumes
 
 #### Celestia DA Stack
+
 1. **da-permission-fix**: Fixes file permissions for shared volumes
 2. **celestia-app**: Celestia consensus node (connects to mocha-4 network)
    - **Entrypoint automation**:
@@ -289,9 +302,10 @@ The script automatically configures:
      - Generates and exports auth token to shared volume
 
 #### Full Node Stack (Optional)
+
 1. **jwt-init-fullnode**: Creates JWT tokens for full node
 2. **reth-fullnode**: EVM execution layer for full node
-3. **fullnode**: Rollkit full node (follows the sequencer)
+3. **fullnode**: Ev-node full node (follows the sequencer)
    - **Entrypoint automation**:
      - Initializes fullnode configuration if not present
      - Imports genesis.json from sequencer's shared volume
@@ -302,34 +316,42 @@ The script automatically configures:
 ### 4. Configuration Files
 
 #### Environment Variables (`.env` files)
+
 Each stack has its own `.env` file with specific configuration:
 
 **Single Sequencer**:
+
 ```bash
-CHAIN_ID="1234"                           # Your chain's unique ID
-EVM_SIGNER_PASSPHRASE="secure_password"   # Sequencer signing key protection
-DA_NAMESPACE="your_namespace_hex"         # Celestia namespace
-DA_START_HEIGHT="6853148"                 # Starting block on Celestia
-DA_RPC_PORT="26658"                       # Celestia RPC port
-SEQUENCER_RETH_PROMETHEUS_PORT="9000"     # Metrics port for Reth
-SEQUENCER_ROLLKIT_PROMETHEUS_PORT="26660" # Metrics port for Rollkit
+CHAIN_ID="1234"                                  # Your chain's unique ID
+EVM_SIGNER_PASSPHRASE="secure_password"          # Sequencer signing key protection
+DA_HEADER_NAMESPACE="your_header_namespace_hex"  # Celestia header namespace
+DA_DATA_NAMESPACE="your_data_namespace_hex"      # Celestia data namespace
+DA_START_HEIGHT="6853148"                        # Starting block on Celestia
+DA_RPC_PORT="26658"                              # Celestia RPC port
+SEQUENCER_EV_RETH_PROMETHEUS_PORT="9000"         # Metrics port for Ev-reth
+SEQUENCER_EV_NODE_PROMETHEUS_PORT="26660"        # Metrics port for Ev-node
 ```
 
 **Celestia DA**:
+
 ```bash
-DA_NAMESPACE="your_namespace_hex"         # Must match sequencer namespace
-CELESTIA_NETWORK="mocha-4"                # Celestia testnet
-CELESTIA_NODE_TAG="latest"                # Docker image version
-DA_CORE_IP="consensus.mocha-4.celestia-mocha.com"  # Celestia consensus endpoint
-DA_CORE_PORT="26657"                      # Celestia consensus port
-DA_RPC_PORT="26658"                       # Light node RPC port
+DA_HEADER_NAMESPACE="your_header_namespace_hex"  # Must match sequencer header namespace
+DA_DATA_NAMESPACE="your_data_namespace_hex"      # Must match sequencer data namespace
+CELESTIA_NETWORK="mocha-4"                       # Celestia testnet
+CELESTIA_NODE_TAG="latest"                       # Docker image version
+DA_CORE_IP="celestia-app"                        # Celestia consensus endpoint
+DA_CORE_PORT="26657"                             # Celestia consensus port
+DA_RPC_PORT="26658"                              # Light node RPC port
 ```
 
 #### Docker Compose Files
+
 Define how services are connected, what ports they expose, and how they depend on each other.
 
 #### Entrypoint Scripts
+
 Smart startup scripts that:
+
 - Initialize services if needed
 - Configure connections between components
 - Handle authentication token sharing
@@ -340,21 +362,24 @@ Smart startup scripts that:
 After deployment, you'll have access to these endpoints:
 
 ### Sequencer Stack
-- **Reth JSON-RPC**: `http://localhost:8545`
+
+- **Ev-reth JSON-RPC**: `http://localhost:8545`
   - Standard Ethereum JSON-RPC interface
   - Use for sending transactions, querying state
-- **Reth Metrics**: `http://localhost:9000`
+- **Ev-reth Metrics**: `http://localhost:9000`
   - Prometheus metrics for monitoring
-- **Rollkit Metrics**: `http://localhost:26660/metrics`
+- **Ev-node Metrics**: `http://localhost:26660/metrics`
   - Consensus layer metrics
 
 ### Full Node Stack (if deployed)
-- **Full Node RPC**: `http://localhost:8545` (different port mapping)
-- **Full Node Metrics**: `http://localhost:9002`
-- **Rollkit Full Node RPC**: `http://localhost:7331`
-- **Rollkit Full Node Metrics**: `http://localhost:26662/metrics`
+
+- **Ev-reth RPC**: `http://localhost:8545` (different port mapping)
+- **Ev-reth Metrics**: `http://localhost:9002`
+- **Ev-node RPC**: `http://localhost:7331`
+- **Ev-node Metrics**: `http://localhost:26662/metrics`
 
 ### Celestia DA
+
 - **Light Node RPC**: `http://localhost:26658`
   - Data availability queries
   - Blob submission and retrieval
@@ -364,9 +389,10 @@ After deployment, you'll have access to these endpoints:
 ### 1. Modifying Configuration
 
 You can edit the `.env` files to change:
+
 - **Chain ID**: Change `CHAIN_ID` to your desired value
 - **Block time**: Modify `EVM_BLOCK_TIME` (default: 500ms)
-- **DA settings**: Update `DA_START_HEIGHT` or `DA_NAMESPACE`
+- **DA settings**: Update `DA_START_HEIGHT`, `DA_HEADER_NAMESPACE`, or `DA_DATA_NAMESPACE`
 - **Ports**: Change port mappings to avoid conflicts
 
 ### 2. Adding Custom Genesis
@@ -376,6 +402,7 @@ Replace `genesis.json` in the sequencer directory with your custom genesis block
 ### 3. Scaling the Deployment
 
 #### Adding More Full Nodes
+
 1. Copy the `fullnode` directory
 2. Modify port mappings in the new `docker-compose.yml`
 3. Update the `.env` file with different ports
@@ -418,11 +445,11 @@ docker compose up -d
 
 ```bash
 # Backup Single Sequencer volumes
-docker run --rm -v reth-sequencer-data:/data -v $(pwd):/backup alpine tar czf /backup/reth-sequencer-data-backup.tar.gz -C /data .
+docker run --rm -v ev-reth-sequencer-data:/data -v $(pwd):/backup alpine tar czf /backup/ev-reth-sequencer-data-backup.tar.gz -C /data .
 docker run --rm -v sequencer-data:/data -v $(pwd):/backup alpine tar czf /backup/sequencer-data-backup.tar.gz -C /data .
 
 # Backup Full Node volumes (if deployed)
-docker run --rm -v reth-fullnode-data:/data -v $(pwd):/backup alpine tar czf /backup/reth-fullnode-data-backup.tar.gz -C /data .
+docker run --rm -v ev-reth-fullnode-data:/data -v $(pwd):/backup alpine tar czf /backup/ev-reth-fullnode-data-backup.tar.gz -C /data .
 docker run --rm -v fullnode-data:/data -v $(pwd):/backup alpine tar czf /backup/fullnode-data-backup.tar.gz -C /data .
 
 # Backup Celestia DA volumes (if deployed)
@@ -439,6 +466,6 @@ This project is released into the public domain under the Unlicense - see the [L
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/rollkit/ops-toolbox/issues)
+- **Issues**: [GitHub Issues](https://github.com/evstack/ev-toolbox/issues)
 - **Documentation**: See the guides above for detailed information
-- **Community**: Join the Rollkit community for support
+- **Community**: Join the Evolve community for support
