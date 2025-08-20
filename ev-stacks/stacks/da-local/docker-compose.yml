@@ -1,0 +1,19 @@
+services:
+  local-da:
+    container_name: local-da
+    image: ghcr.io/evstack/local-da:${LOCAL_DA_TAG}
+    env_file: .env
+    restart: always
+    command: ["-listen-all"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7980/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    networks:
+      - evstack_shared
+
+networks:
+  evstack_shared:
+    name: evstack_shared

@@ -11,13 +11,15 @@ readonly SCRIPT_VERSION="1.1.0"
 readonly SCRIPT_NAME="deploy-evolve"
 readonly REPO_URL="https://github.com/evstack/ev-toolbox"
 readonly GITHUB_RAW_BASE="https://raw.githubusercontent.com/evstack/ev-toolbox"
-readonly BASE_URL="$GITHUB_RAW_BASE/refs/heads/main/ev-stacks"
+# readonly BASE_URL="$GITHUB_RAW_BASE/refs/heads/main/ev-stacks"
+readonly BASE_URL="$GITHUB_RAW_BASE/refs/heads/claude/local_da/ev-stacks"
 readonly DEPLOYMENT_DIR="$HOME/evolve-deployment"
 
 # File and directory constants
 readonly ENV_FILE=".env"
 readonly DOCKER_COMPOSE_FILE="docker-compose.yml"
 readonly DOCKER_COMPOSE_DA_CELESTIA_FILE="docker-compose.da.celestia.yml"
+readonly DOCKER_COMPOSE_DA_LOCAL_FILE="docker-compose.da.local.yml"
 readonly GENESIS_FILE="genesis.json"
 readonly SEQUENCER_ENTRYPOINT="entrypoint.sequencer.sh"
 readonly FULLNODE_ENTRYPOINT="entrypoint.fullnode.sh"
@@ -33,6 +35,7 @@ readonly LIB_DIR="lib"
 readonly SINGLE_SEQUENCER_DIR="single-sequencer"
 readonly FULLNODE_DIR="fullnode"
 readonly DA_CELESTIA_DIR="da-celestia"
+readonly DA_LOCAL_DIR="da-local"
 
 # Container and service name patterns
 readonly SEQUENCER_CONTAINERS="(sequencer|reth-sequencer|jwt-init)"
@@ -67,6 +70,7 @@ FORCE_INSTALL=false
 LOG_FILE=""
 CLEANUP_ON_EXIT=true
 DEPLOY_DA_CELESTIA=false
+DEPLOY_DA_LOCAL=false
 SELECTED_DA=""
 SELECTED_SEQUENCER=""
 DEPLOY_FULLNODE=false
@@ -291,22 +295,29 @@ select_da_layer() {
 
 	echo ""
 	echo "🌌 Available Data Availability (DA) layers:"
-	echo "  1) da-celestia - Celestia modular DA network (mocha-4)"
+	echo "  1) da-local - Local DA for development and testing"
+	echo "  2) da-celestia - Celestia modular DA network (mocha-4)"
 	echo ""
 
 	while true; do
-		echo -n "Please select a DA layer (1): "
+		echo -n "Please select a DA layer (1-2): "
 		read -r choice
 
 		case $choice in
 		1)
+			SELECTED_DA="da-local"
+			DEPLOY_DA_LOCAL=true
+			log "SUCCESS" "Selected DA layer: Local DA"
+			break
+			;;
+		2)
 			SELECTED_DA="da-celestia"
 			DEPLOY_DA_CELESTIA=true
 			log "SUCCESS" "Selected DA layer: Celestia (mocha-4)"
 			break
 			;;
 		*)
-			echo "❌ Invalid choice. Please enter 1."
+			echo "❌ Invalid choice. Please enter 1 or 2."
 			;;
 		esac
 	done
@@ -328,6 +339,9 @@ download_sequencer_files() {
 	if [[ $DEPLOY_DA_CELESTIA == "true" ]]; then
 		docker_compose_file="stacks/single-sequencer/docker-compose.da.celestia.yml"
 		log "CONFIG" "Using DA Celestia integrated docker-compose file"
+	elif [[ $DEPLOY_DA_LOCAL == "true" ]]; then
+		docker_compose_file="stacks/single-sequencer/docker-compose.da.local.yml"
+		log "CONFIG" "Using DA Local integrated docker-compose file"
 	else
 		docker_compose_file="stacks/single-sequencer/docker-compose.yml"
 		log "CONFIG" "Using standalone docker-compose file"
@@ -346,7 +360,7 @@ download_sequencer_files() {
 		log "DEBUG" "Downloading $file..."
 		local filename=$(basename "$file")
 		# Always save as docker-compose.yml regardless of source file name
-		if [[ $filename == "docker-compose.da.celestia.yml" ]]; then
+		if [[ $filename == "docker-compose.da.celestia.yml" || $filename == "docker-compose.da.local.yml" ]]; then
 			filename="docker-compose.yml"
 		fi
 		curl -fsSL "$BASE_URL/$file" -o "$filename" || error_exit "Failed to download $filename"
@@ -367,9 +381,22 @@ download_fullnode_files() {
 
 	cd "$DEPLOYMENT_DIR/stacks/fullnode" || error_exit "Failed to change to fullnode directory"
 
+	# Choose the appropriate docker-compose file based on DA selection
+	local docker_compose_file
+	if [[ $DEPLOY_DA_CELESTIA == "true" ]]; then
+		docker_compose_file="stacks/fullnode/docker-compose.da.celestia.yml"
+		log "CONFIG" "Using DA Celestia integrated docker-compose file for fullnode"
+	elif [[ $DEPLOY_DA_LOCAL == "true" ]]; then
+		docker_compose_file="stacks/fullnode/docker-compose.da.local.yml"
+		log "CONFIG" "Using DA Local integrated docker-compose file for fullnode"
+	else
+		docker_compose_file="stacks/fullnode/docker-compose.yml"
+		log "CONFIG" "Using standalone docker-compose file for fullnode"
+	fi
+
 	local files=(
 		"stacks/fullnode/.env"
-		"stacks/fullnode/docker-compose.da.celestia.yml"
+		"$docker_compose_file"
 		"stacks/fullnode/entrypoint.fullnode.sh"
 	)
 
@@ -377,7 +404,7 @@ download_fullnode_files() {
 		log "DEBUG" "Downloading $file..."
 		local filename=$(basename "$file")
 		# Always save as docker-compose.yml regardless of source file name
-		if [[ $filename == "docker-compose.da.celestia.yml" ]]; then
+		if [[ $filename == "docker-compose.da.celestia.yml" || $filename == "docker-compose.da.local.yml" ]]; then
 			filename="docker-compose.yml"
 		fi
 		curl -fsSL "$BASE_URL/$file" -o "$filename" || error_exit "Failed to download $filename"
@@ -416,6 +443,29 @@ download_da_celestia_files() {
 	chmod +x entrypoint.appd.sh entrypoint.da.sh || error_exit "Failed to make entrypoint scripts executable"
 
 	log "SUCCESS" "DA-Celestia deployment files downloaded successfully"
+}
+
+# Download deployment files for da-local
+download_da_local_files() {
+	log "DOWNLOAD" "Downloading da-local deployment files..."
+
+	# Create da-local subfolder
+	mkdir -p "$DEPLOYMENT_DIR/stacks/da-local" || error_exit "Failed to create da-local directory"
+
+	cd "$DEPLOYMENT_DIR/stacks/da-local" || error_exit "Failed to change to da-local directory"
+
+	local files=(
+		"stacks/da-local/.env"
+		"stacks/da-local/docker-compose.yml"
+	)
+
+	for file in "${files[@]}"; do
+		log "DEBUG" "Downloading $file..."
+		local filename=$(basename "$file")
+		curl -fsSL "$BASE_URL/$file" -o "$filename" || error_exit "Failed to download $filename"
+	done
+
+	log "SUCCESS" "DA-Local deployment files downloaded successfully"
 }
 
 # Download shared library files
@@ -465,6 +515,11 @@ download_deployment_files() {
 	# Download da-celestia files if requested
 	if [[ $DEPLOY_DA_CELESTIA == "true" ]]; then
 		download_da_celestia_files
+	fi
+
+	# Download da-local files if requested
+	if [[ $DEPLOY_DA_LOCAL == "true" ]]; then
+		download_da_local_files
 	fi
 
 	log "SUCCESS" "All deployment files downloaded successfully"
@@ -724,29 +779,29 @@ setup_sequencer_configuration() {
 			local da_data_namespace=$(grep "^DA_DATA_NAMESPACE=" "$da_celestia_env" | cut -d'=' -f2 | tr -d '"')
 
 			if [[ -n $da_header_namespace ]]; then
-				# Add or update DA_HEADER_NAMESPACE in single-sequencer .env
-				update_env_var "$env_file" "DA_HEADER_NAMESPACE" "$da_header_namespace"
-				log "SUCCESS" "DA_HEADER_NAMESPACE set to: $da_header_namespace"
+				# Add or update SEQUENCER_DA_HEADER_NAMESPACE in single-sequencer .env
+				update_env_var "$env_file" "SEQUENCER_DA_HEADER_NAMESPACE" "$da_header_namespace"
+				log "SUCCESS" "SEQUENCER_DA_HEADER_NAMESPACE set to: $da_header_namespace"
 			else
 				log "WARN" "DA_HEADER_NAMESPACE is empty in da-celestia .env file. Single-sequencer may show warnings."
-				# Still add the empty DA_HEADER_NAMESPACE to single-sequencer .env to avoid undefined variable warnings
-				update_env_var "$env_file" "DA_HEADER_NAMESPACE" ""
+				# Still add the empty SEQUENCER_DA_HEADER_NAMESPACE to single-sequencer .env to avoid undefined variable warnings
+				update_env_var "$env_file" "SEQUENCER_DA_HEADER_NAMESPACE" ""
 			fi
 
 			if [[ -n $da_data_namespace ]]; then
-				# Add or update DA_DATA_NAMESPACE in single-sequencer .env
-				update_env_var "$env_file" "DA_DATA_NAMESPACE" "$da_data_namespace"
-				log "SUCCESS" "DA_DATA_NAMESPACE set to: $da_data_namespace"
+				# Add or update SEQUENCER_DA_DATA_NAMESPACE in single-sequencer .env
+				update_env_var "$env_file" "SEQUENCER_DA_DATA_NAMESPACE" "$da_data_namespace"
+				log "SUCCESS" "SEQUENCER_DA_DATA_NAMESPACE set to: $da_data_namespace"
 			else
 				log "WARN" "DA_DATA_NAMESPACE is empty in da-celestia .env file. Single-sequencer may show warnings."
-				# Still add the empty DA_DATA_NAMESPACE to single-sequencer .env to avoid undefined variable warnings
-				update_env_var "$env_file" "DA_DATA_NAMESPACE" ""
+				# Still add the empty SEQUENCER_DA_DATA_NAMESPACE to single-sequencer .env to avoid undefined variable warnings
+				update_env_var "$env_file" "SEQUENCER_DA_DATA_NAMESPACE" ""
 			fi
 		else
 			log "WARN" "DA-Celestia .env file not found. Adding empty DA namespaces to prevent warnings."
 			# Add empty DA namespaces to single-sequencer .env to avoid undefined variable warnings
-			update_env_var "$env_file" "DA_HEADER_NAMESPACE" ""
-			update_env_var "$env_file" "DA_DATA_NAMESPACE" ""
+			update_env_var "$env_file" "SEQUENCER_DA_HEADER_NAMESPACE" ""
+			update_env_var "$env_file" "SEQUENCER_DA_DATA_NAMESPACE" ""
 		fi
 	fi
 
@@ -806,29 +861,29 @@ setup_fullnode_configuration() {
 			local da_data_namespace=$(grep "^DA_DATA_NAMESPACE=" "$da_celestia_env" | cut -d'=' -f2 | tr -d '"')
 
 			if [[ -n $da_header_namespace ]]; then
-				# Add or update DA_HEADER_NAMESPACE in fullnode .env
-				update_env_var "$env_file" "DA_HEADER_NAMESPACE" "$da_header_namespace"
-				log "SUCCESS" "DA_HEADER_NAMESPACE set to: $da_header_namespace"
+				# Add or update FULLNODE_DA_HEADER_NAMESPACE in fullnode .env
+				update_env_var "$env_file" "FULLNODE_DA_HEADER_NAMESPACE" "$da_header_namespace"
+				log "SUCCESS" "FULLNODE_DA_HEADER_NAMESPACE set to: $da_header_namespace"
 			else
 				log "WARN" "DA_HEADER_NAMESPACE is empty in da-celestia .env file. Fullnode may show warnings."
-				# Still add the empty DA_HEADER_NAMESPACE to fullnode .env to avoid undefined variable warnings
-				update_env_var "$env_file" "DA_HEADER_NAMESPACE" ""
+				# Still add the empty FULLNODE_DA_HEADER_NAMESPACE to fullnode .env to avoid undefined variable warnings
+				update_env_var "$env_file" "FULLNODE_DA_HEADER_NAMESPACE" ""
 			fi
 
 			if [[ -n $da_data_namespace ]]; then
-				# Add or update DA_DATA_NAMESPACE in fullnode .env
-				update_env_var "$env_file" "DA_DATA_NAMESPACE" "$da_data_namespace"
-				log "SUCCESS" "DA_DATA_NAMESPACE set to: $da_data_namespace"
+				# Add or update FULLNODE_DA_DATA_NAMESPACE in fullnode .env
+				update_env_var "$env_file" "FULLNODE_DA_DATA_NAMESPACE" "$da_data_namespace"
+				log "SUCCESS" "FULLNODE_DA_DATA_NAMESPACE set to: $da_data_namespace"
 			else
 				log "WARN" "DA_DATA_NAMESPACE is empty in da-celestia .env file. Fullnode may show warnings."
-				# Still add the empty DA_DATA_NAMESPACE to fullnode .env to avoid undefined variable warnings
-				update_env_var "$env_file" "DA_DATA_NAMESPACE" ""
+				# Still add the empty FULLNODE_DA_DATA_NAMESPACE to fullnode .env to avoid undefined variable warnings
+				update_env_var "$env_file" "FULLNODE_DA_DATA_NAMESPACE" ""
 			fi
 		else
 			log "WARN" "DA-Celestia .env file not found. Adding empty DA namespaces to prevent warnings."
 			# Add empty DA namespaces to fullnode .env to avoid undefined variable warnings
-			update_env_var "$env_file" "DA_HEADER_NAMESPACE" ""
-			update_env_var "$env_file" "DA_DATA_NAMESPACE" ""
+			update_env_var "$env_file" "FULLNODE_DA_HEADER_NAMESPACE" ""
+			update_env_var "$env_file" "FULLNODE_DA_DATA_NAMESPACE" ""
 		fi
 	fi
 
@@ -1023,20 +1078,22 @@ show_deployment_status() {
 	echo "📁 Deployment Directory: $DEPLOYMENT_DIR"
 	echo ""
 	echo "🚀 Available Stacks:"
-	echo "  📡 Single Sequencer: $DEPLOYMENT_DIR/single-sequencer"
-
-	if [[ $DEPLOY_DA_CELESTIA == "true" ]]; then
-		echo "  🌌 Celestia Data Availability: $DEPLOYMENT_DIR/da-celestia"
-	fi
 
 	if [[ $SELECTED_SEQUENCER == "single-sequencer" ]]; then
-		echo "  📡 Single Sequencer: $DEPLOYMENT_DIR/da-celestia"
+		echo "  📡 Single Sequencer: $DEPLOYMENT_DIR/stacks/single-sequencer"
+	fi
+
+	if [[ $DEPLOY_DA_CELESTIA == "true" ]]; then
+		echo "  🌌 Celestia Data Availability: $DEPLOYMENT_DIR/stacks/da-celestia"
+	fi
+
+	if [[ $DEPLOY_DA_LOCAL == "true" ]]; then
+		echo "  🏠 Local Data Availability: $DEPLOYMENT_DIR/stacks/da-local"
 	fi
 
 	if [[ $DEPLOY_FULLNODE == "true" ]]; then
-		echo "  🔗 Fullnode: $DEPLOYMENT_DIR/fullnode"
+		echo "  🔗 Fullnode: $DEPLOYMENT_DIR/stacks/fullnode"
 	fi
-
 
 	echo ""
 	echo "▶️  Next Steps:"
@@ -1052,8 +1109,15 @@ show_deployment_status() {
 		echo ""
 	fi
 
+	if [[ $DEPLOY_DA_LOCAL == "true" ]]; then
+		echo "🚀 Start the Local Data Availability stack first:"
+		echo "  1. cd $DEPLOYMENT_DIR/stacks/da-local"
+		echo "  2. docker compose up -d"
+		echo ""
+	fi
+
 	if [[ $SELECTED_SEQUENCER == "single-sequencer" ]]; then
-		echo "🚀 Start the Sequencer Single Sequencer stack:"
+		echo "🚀 Start the Single Sequencer stack:"
 		echo "  1. cd $DEPLOYMENT_DIR/stacks/single-sequencer"
 		echo "  2. docker compose up -d"
 		echo ""
@@ -1067,6 +1131,13 @@ show_deployment_status() {
 	fi
 
 	echo "🌐 Service Endpoints:"
+
+	if [[ $DEPLOY_DA_LOCAL == "true" ]]; then
+		echo "  🏠 Local DA:"
+		echo "    - Local DA RPC: http://localhost:7980"
+		echo ""
+	fi
+
 	if [[ $SELECTED_SEQUENCER == "single-sequencer" ]]; then
 		echo "  📡 Single Sequencer:"
 		echo "    - Ev-reth Prometheus Metrics: http://localhost:9000"
@@ -1291,7 +1362,7 @@ main() {
 	if [[ $DEPLOY_FULLNODE == "true" ]]; then
 		deployment_info="$deployment_info + Fullnode"
 	fi
-	if [[ $DEPLOY_DA_CELESTIA == "true" ]]; then
+	if [[ $DEPLOY_DA_CELESTIA == "true" || $DEPLOY_DA_LOCAL == "true" ]]; then
 		deployment_info="$deployment_info + $SELECTED_DA"
 	fi
 	log "INFO" "Deploying: $deployment_info"

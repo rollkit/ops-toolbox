@@ -91,11 +91,11 @@ services:
       - EVM_BLOCK_TIME=500ms
       - EVM_SIGNER_PASSPHRASE=${EVM_SIGNER_PASSPHRASE}
       - DA_BLOCK_TIME=30s
-      - DA_ADDRESS=http://celestia-node:${DA_RPC_PORT}
-      - DA_HEADER_NAMESPACE=${DA_HEADER_NAMESPACE}
-      - DA_DATA_NAMESPACE=${DA_DATA_NAMESPACE}
+      - DA_ADDRESS=http://celestia-node:26658
+      - DA_HEADER_NAMESPACE=${SEQUENCER_DA_HEADER_NAMESPACE}
+      - DA_DATA_NAMESPACE=${SEQUENCER_DA_DATA_NAMESPACE}
       - DA_AUTH_TOKEN_PATH=/volumes/da_export/auth_token
-      - DA_START_HEIGHT=${DA_START_HEIGHT}
+      - DA_START_HEIGHT=${SEQUENCER_DA_START_HEIGHT}
     networks:
       - evstack_shared
 
