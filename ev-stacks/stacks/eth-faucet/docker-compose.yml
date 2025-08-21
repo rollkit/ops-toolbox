@@ -1,0 +1,23 @@
+services:
+  eth-faucet:
+    image: ghcr.io/01builders/eth-faucet:main
+    container_name: eth-faucet
+    restart: unless-stopped
+    environment:
+      WEB3_PROVIDER: http://ev-reth-sequencer:8545
+    command: ["-httpport", "8081", "-proxycount", "1"]
+    env_file: .env
+    ports:
+      - 8081:8081
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - evstack_shared
+
+networks:
+  evstack_shared:
+    external: true

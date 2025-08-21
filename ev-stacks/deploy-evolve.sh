@@ -34,6 +34,7 @@ readonly STACKS_DIR="stacks"
 readonly LIB_DIR="lib"
 readonly SINGLE_SEQUENCER_DIR="single-sequencer"
 readonly FULLNODE_DIR="fullnode"
+readonly ETH_FAUCET_DIR="eth-faucet"
 readonly DA_CELESTIA_DIR="da-celestia"
 readonly DA_LOCAL_DIR="da-local"
 
@@ -55,6 +56,7 @@ readonly FULLNODE_RPC_PORT="8545"
 readonly FULLNODE_PROMETHEUS_PORT="9002"
 readonly FULLNODE_NODE_RPC_PORT="7331"
 readonly FULLNODE_NODE_METRICS_PORT="26662"
+readonly ETH_FAUCET_PORT="8081"
 
 # Color codes for output
 readonly RED='\033[0;31m'
@@ -74,6 +76,7 @@ DEPLOY_DA_LOCAL=false
 SELECTED_DA=""
 SELECTED_SEQUENCER=""
 DEPLOY_FULLNODE=false
+DEPLOY_ETH_FAUCET=false
 
 # Enhanced logging function that extends the shared one with colors and file logging
 log() {
@@ -289,6 +292,42 @@ select_fullnode_deployment() {
 	echo ""
 }
 
+# Interactive eth-faucet selection
+select_eth_faucet_deployment() {
+	log "CONFIG" "Selecting eth-faucet deployment option..."
+
+	echo ""
+	echo "💰 Do you want to deploy an eth-faucet service?"
+	echo "  1) Yes - Deploy eth-faucet for easy token distribution"
+	echo "  2) No - Skip eth-faucet deployment"
+	echo ""
+	echo "ℹ️  Note: Eth-faucet provides a web interface for distributing test tokens"
+	echo ""
+
+	while true; do
+		echo -n "Please select an option (1-2): "
+		read -r choice
+
+		case $choice in
+		1)
+			DEPLOY_ETH_FAUCET=true
+			log "SUCCESS" "Selected: Deploy eth-faucet service"
+			break
+			;;
+		2)
+			DEPLOY_ETH_FAUCET=false
+			log "SUCCESS" "Selected: Skip eth-faucet"
+			break
+			;;
+		*)
+			echo "❌ Invalid choice. Please enter 1 or 2."
+			;;
+		esac
+	done
+
+	echo ""
+}
+
 # Interactive DA selection
 select_da_layer() {
 	log "CONFIG" "Selecting Data Availability layer..."
@@ -468,6 +507,29 @@ download_da_local_files() {
 	log "SUCCESS" "DA-Local deployment files downloaded successfully"
 }
 
+# Download deployment files for eth-faucet
+download_eth_faucet_files() {
+	log "DOWNLOAD" "Downloading eth-faucet deployment files..."
+
+	# Create eth-faucet subfolder
+	mkdir -p "$DEPLOYMENT_DIR/stacks/eth-faucet" || error_exit "Failed to create eth-faucet directory"
+
+	cd "$DEPLOYMENT_DIR/stacks/eth-faucet" || error_exit "Failed to change to eth-faucet directory"
+
+	local files=(
+		"stacks/eth-faucet/.env"
+		"stacks/eth-faucet/docker-compose.yml"
+	)
+
+	for file in "${files[@]}"; do
+		log "DEBUG" "Downloading $file..."
+		local filename=$(basename "$file")
+		curl -fsSL "$BASE_URL/$file" -o "$filename" || error_exit "Failed to download $filename"
+	done
+
+	log "SUCCESS" "Eth-faucet deployment files downloaded successfully"
+}
+
 # Download shared library files
 download_shared_files() {
 	log "DOWNLOAD" "Downloading shared library files..."
@@ -520,6 +582,11 @@ download_deployment_files() {
 	# Download da-local files if requested
 	if [[ $DEPLOY_DA_LOCAL == "true" ]]; then
 		download_da_local_files
+	fi
+
+	# Download eth-faucet files if requested
+	if [[ $DEPLOY_ETH_FAUCET == "true" ]]; then
+		download_eth_faucet_files
 	fi
 
 	log "SUCCESS" "All deployment files downloaded successfully"
@@ -585,7 +652,7 @@ setup_genesis_allocation() {
 	echo "   to access the funds allocated to these addresses."
 	echo ""
 	echo "📝 Please enter Ethereum addresses (one per line). You must provide at least one valid address:"
-	echo "   Example: 0x742d35Cc6634C0532925a3b8D4C9db96590c6C87"
+	echo "   Example: 0x61F929626841DC9ed2268e62Ef408Bd29d995293"
 	echo ""
 
 	local user_addresses=()
@@ -620,7 +687,7 @@ setup_genesis_allocation() {
 			echo "💡 You can add more addresses or press Enter to continue with the current addresses."
 		else
 			echo "❌ Invalid Ethereum address format. Please enter a valid address starting with 0x followed by 40 hexadecimal characters."
-			echo "   Example: 0x742d35Cc6634C0532925a3b8D4C9db96590c6C87"
+			echo "   Example: 0x61F929626841DC9ed2268e62Ef408Bd29d995293"
 		fi
 	done
 
@@ -957,6 +1024,92 @@ setup_da_celestia_configuration() {
 	log "SUCCESS" "DA-Celestia configuration setup completed"
 }
 
+# Helper function to validate private key format
+validate_private_key() {
+	local private_key="$1"
+
+	# Check if private key is 64 hex characters (without 0x prefix) or 66 characters (with 0x prefix)
+	if [[ $private_key =~ ^0x[a-fA-F0-9]{64}$ ]] || [[ $private_key =~ ^[a-fA-F0-9]{64}$ ]]; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+# Configuration management for eth-faucet
+setup_eth_faucet_configuration() {
+	log "CONFIG" "Setting up eth-faucet configuration..."
+
+	# Change to eth-faucet directory
+	cd "$DEPLOYMENT_DIR/stacks/eth-faucet" || error_exit "Failed to change to eth-faucet directory"
+
+	local env_file=".env"
+
+	if [[ ! -f $env_file ]]; then
+		error_exit "Eth-faucet environment file not found: $env_file"
+	fi
+
+	if [[ ! -r $env_file ]]; then
+		error_exit "Eth-faucet environment file is not readable: $env_file"
+	fi
+
+	# Check for missing PRIVATE_KEY and prompt user
+	if grep -q "^PRIVATE_KEY=$" "$env_file" || ! grep -q "^PRIVATE_KEY=" "$env_file"; then
+		echo ""
+		echo "🔑 Private Key Configuration for Eth-Faucet"
+		echo "============================================"
+		echo ""
+		echo "The eth-faucet service requires a private key to sign transactions and distribute tokens."
+		echo ""
+		echo "⚠️  SECURITY WARNING:"
+		echo "   • This private key will control the faucet's funds"
+		echo "   • Make sure this account has sufficient balance for token distribution"
+		echo "   • Use a dedicated account for the faucet, not your main wallet"
+		echo "   • The private key will be stored in the .env file"
+		echo ""
+		echo "📝 Private key format:"
+		echo "   • 64 hexadecimal characters (without 0x prefix)"
+		echo "   • OR 66 characters (with 0x prefix)"
+		echo "   • Example: 0x11f736e572551c472f4308299735c718447b0d03980b18c951950bbc5beb3ebb"
+		echo ""
+
+		while true; do
+			echo -n "Please enter the private key for the eth-faucet: "
+			read -r private_key
+
+			# Validate private key format
+			if [[ -z "$private_key" ]]; then
+				echo "❌ Error: Private key cannot be empty."
+				continue
+			fi
+
+			if validate_private_key "$private_key"; then
+				# Ensure private key has 0x prefix for consistency
+				if [[ ! $private_key =~ ^0x ]]; then
+					private_key="0x$private_key"
+				fi
+				echo "✅ Valid private key format."
+				break
+			else
+				echo "❌ Error: Invalid private key format."
+				echo "   Private key must be 64 hexadecimal characters (optionally prefixed with 0x)."
+				echo "   Example: 0x11f736e572551c472f4308299735c718447b0d03980b18c951950bbc5beb3ebb"
+			fi
+		done
+
+		# Update private key in .env file
+		update_env_var "$env_file" "PRIVATE_KEY" "$private_key"
+		log "SUCCESS" "Private key configured for eth-faucet"
+
+		echo ""
+		echo "✅ Eth-faucet private key has been configured."
+		echo "💡 Make sure the corresponding address has sufficient balance for token distribution."
+		echo ""
+	fi
+
+	log "SUCCESS" "Eth-faucet configuration setup completed"
+}
+
 # Configuration management
 setup_configuration() {
 	log "CONFIG" "Setting up configuration..."
@@ -972,6 +1125,11 @@ setup_configuration() {
 	# Setup fullnode configuration if deployed
 	if [[ $DEPLOY_FULLNODE == "true" ]]; then
 		setup_fullnode_configuration
+	fi
+
+	# Setup eth-faucet configuration if deployed
+	if [[ $DEPLOY_ETH_FAUCET == "true" ]]; then
+		setup_eth_faucet_configuration
 	fi
 
 	log "SUCCESS" "All configuration setup completed"
@@ -1095,6 +1253,10 @@ show_deployment_status() {
 		echo "  🔗 Fullnode: $DEPLOYMENT_DIR/stacks/fullnode"
 	fi
 
+	if [[ $DEPLOY_ETH_FAUCET == "true" ]]; then
+		echo "  💰 Eth-Faucet: $DEPLOYMENT_DIR/stacks/eth-faucet"
+	fi
+
 	echo ""
 	echo "▶️  Next Steps:"
 	echo ""
@@ -1130,6 +1292,13 @@ show_deployment_status() {
 		echo ""
 	fi
 
+	if [[ $DEPLOY_ETH_FAUCET == "true" ]]; then
+		echo "🚀 Start the Eth-Faucet stack:"
+		echo "  1. cd $DEPLOYMENT_DIR/stacks/eth-faucet"
+		echo "  2. docker compose up -d"
+		echo ""
+	fi
+
 	echo "🌐 Service Endpoints:"
 
 	if [[ $DEPLOY_DA_LOCAL == "true" ]]; then
@@ -1154,13 +1323,19 @@ show_deployment_status() {
 		echo ""
 	fi
 
-	echo "🛠️  Service Management:"
+	if [[ $DEPLOY_ETH_FAUCET == "true" ]]; then
+		echo "  💰 Eth-Faucet:"
+		echo "    - Faucet Web Interface: http://localhost:8081"
+		echo ""
+	fi
+
+	echo "�️  Service Management:"
 	echo "  - View status: docker compose ps"
 	echo "  - View logs: docker compose logs -f"
 	echo "  - Stop services: docker compose down"
 	echo "  - Restart services: docker compose restart"
 	echo ""
-	echo "🔍 Health Monitoring:"
+	echo "�🔍 Health Monitoring:"
 	echo "  - Check service status: docker compose ps"
 	echo "  - Test endpoints manually using curl"
 	echo "  - View service logs: docker compose logs -f"
@@ -1357,10 +1532,16 @@ main() {
 	# Interactive fullnode selection
 	select_fullnode_deployment
 
+	# Interactive eth-faucet selection
+	select_eth_faucet_deployment
+
 	# Show what will be deployed
 	local deployment_info="$SELECTED_SEQUENCER"
 	if [[ $DEPLOY_FULLNODE == "true" ]]; then
 		deployment_info="$deployment_info + Fullnode"
+	fi
+	if [[ $DEPLOY_ETH_FAUCET == "true" ]]; then
+		deployment_info="$deployment_info + Eth-Faucet"
 	fi
 	if [[ $DEPLOY_DA_CELESTIA == "true" || $DEPLOY_DA_LOCAL == "true" ]]; then
 		deployment_info="$deployment_info + $SELECTED_DA"
