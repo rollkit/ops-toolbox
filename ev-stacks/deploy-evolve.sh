@@ -35,6 +35,7 @@ readonly LIB_DIR="lib"
 readonly SINGLE_SEQUENCER_DIR="single-sequencer"
 readonly FULLNODE_DIR="fullnode"
 readonly ETH_FAUCET_DIR="eth-faucet"
+readonly ETH_EXPLORER_DIR="eth-explorer"
 readonly DA_CELESTIA_DIR="da-celestia"
 readonly DA_LOCAL_DIR="da-local"
 
@@ -77,6 +78,7 @@ SELECTED_DA=""
 SELECTED_SEQUENCER=""
 DEPLOY_FULLNODE=false
 DEPLOY_ETH_FAUCET=false
+DEPLOY_ETH_EXPLORER=false
 
 # Enhanced logging function that extends the shared one with colors and file logging
 log() {
@@ -328,6 +330,73 @@ select_eth_faucet_deployment() {
 	echo ""
 }
 
+# Show SECRET_KEY_BASE disclaimer for eth-explorer
+show_eth_explorer_disclaimer() {
+	echo ""
+	echo "🔐 =========================================="
+	echo "🔐 IMPORTANT SECURITY NOTICE"
+	echo "🔐 =========================================="
+	echo ""
+	echo "⚠️  The eth-explorer (Blockscout) deployment includes a default SECRET_KEY_BASE"
+	echo "   for demonstration purposes. For production or secure environments, you"
+	echo "   MUST generate your own SECRET_KEY_BASE."
+	echo ""
+	echo "📖 As documented in the Blockscout manual deployment guide:"
+	echo "   https://docs.blockscout.com/setup/deployment/manual-deployment-guide"
+	echo ""
+	echo "🔧 To generate a new SECRET_KEY_BASE:"
+	echo "   1. Use: openssl rand -base64 64"
+	echo "   2. Replace the SECRET_KEY_BASE value in:"
+	echo "      $DEPLOYMENT_DIR/stacks/eth-explorer/.env"
+	echo ""
+	echo "🚨 Using the default SECRET_KEY_BASE in production environments"
+	echo "   poses a significant security risk!"
+	echo ""
+	echo "Press any key to acknowledge and continue..."
+	read -n 1 -s
+	echo ""
+	echo "✅ Disclaimer acknowledged. Continuing with deployment..."
+	echo ""
+}
+
+# Interactive eth-explorer selection
+select_eth_explorer_deployment() {
+	log "CONFIG" "Selecting eth-explorer deployment option..."
+
+	echo ""
+	echo "🔍 Do you want to deploy an eth-explorer service?"
+	echo "  1) Yes - Deploy eth-explorer (Blockscout) for blockchain exploration"
+	echo "  2) No - Skip eth-explorer deployment"
+	echo ""
+	echo "ℹ️  Note: Eth-explorer provides a web interface for exploring blockchain data"
+	echo ""
+
+	while true; do
+		echo -n "Please select an option (1-2): "
+		read -r choice
+
+		case $choice in
+		1)
+			DEPLOY_ETH_EXPLORER=true
+			log "SUCCESS" "Selected: Deploy eth-explorer service"
+			# Show security disclaimer after user chooses to deploy
+			show_eth_explorer_disclaimer
+			break
+			;;
+		2)
+			DEPLOY_ETH_EXPLORER=false
+			log "SUCCESS" "Selected: Skip eth-explorer"
+			break
+			;;
+		*)
+			echo "❌ Invalid choice. Please enter 1 or 2."
+			;;
+		esac
+	done
+
+	echo ""
+}
+
 # Interactive DA selection
 select_da_layer() {
 	log "CONFIG" "Selecting Data Availability layer..."
@@ -530,6 +599,29 @@ download_eth_faucet_files() {
 	log "SUCCESS" "Eth-faucet deployment files downloaded successfully"
 }
 
+# Download deployment files for eth-explorer
+download_eth_explorer_files() {
+	log "DOWNLOAD" "Downloading eth-explorer deployment files..."
+
+	# Create eth-explorer subfolder
+	mkdir -p "$DEPLOYMENT_DIR/stacks/eth-explorer" || error_exit "Failed to create eth-explorer directory"
+
+	cd "$DEPLOYMENT_DIR/stacks/eth-explorer" || error_exit "Failed to change to eth-explorer directory"
+
+	local files=(
+		"stacks/eth-explorer/.env"
+		"stacks/eth-explorer/docker-compose.yml"
+	)
+
+	for file in "${files[@]}"; do
+		log "DEBUG" "Downloading $file..."
+		local filename=$(basename "$file")
+		curl -fsSL "$BASE_URL/$file" -o "$filename" || error_exit "Failed to download $filename"
+	done
+
+	log "SUCCESS" "Eth-explorer deployment files downloaded successfully"
+}
+
 # Download shared library files
 download_shared_files() {
 	log "DOWNLOAD" "Downloading shared library files..."
@@ -587,6 +679,11 @@ download_deployment_files() {
 	# Download eth-faucet files if requested
 	if [[ $DEPLOY_ETH_FAUCET == "true" ]]; then
 		download_eth_faucet_files
+	fi
+
+	# Download eth-explorer files if requested
+	if [[ $DEPLOY_ETH_EXPLORER == "true" ]]; then
+		download_eth_explorer_files
 	fi
 
 	log "SUCCESS" "All deployment files downloaded successfully"
@@ -1110,6 +1207,67 @@ setup_eth_faucet_configuration() {
 	log "SUCCESS" "Eth-faucet configuration setup completed"
 }
 
+# Configuration management for eth-explorer
+setup_eth_explorer_configuration() {
+	log "CONFIG" "Setting up eth-explorer configuration..."
+
+	# Change to eth-explorer directory
+	cd "$DEPLOYMENT_DIR/stacks/eth-explorer" || error_exit "Failed to change to eth-explorer directory"
+
+	local env_file=".env"
+
+	if [[ ! -f $env_file ]]; then
+		error_exit "Eth-explorer environment file not found: $env_file"
+	fi
+
+	if [[ ! -r $env_file ]]; then
+		error_exit "Eth-explorer environment file is not readable: $env_file"
+	fi
+
+	# Check for missing CHAIN_ID and get it from sequencer configuration
+	if grep -q "^CHAIN_ID=$" "$env_file" || ! grep -q "^CHAIN_ID=" "$env_file"; then
+		log "CONFIG" "Setting CHAIN_ID for eth-explorer from sequencer configuration..."
+
+		# Get CHAIN_ID from single-sequencer .env file
+		local sequencer_env="$DEPLOYMENT_DIR/stacks/single-sequencer/.env"
+		if [[ -f $sequencer_env ]]; then
+			local chain_id=$(grep "^CHAIN_ID=" "$sequencer_env" | cut -d'=' -f2 | tr -d '"')
+
+			if [[ -n $chain_id ]]; then
+				# Update CHAIN_ID in eth-explorer .env file
+				update_env_var "$env_file" "CHAIN_ID" "$chain_id"
+				log "SUCCESS" "CHAIN_ID set to: $chain_id"
+			else
+				log "WARN" "CHAIN_ID is empty in sequencer .env file. Eth-explorer may not start properly."
+				# Still add the empty CHAIN_ID to eth-explorer .env to avoid undefined variable warnings
+				update_env_var "$env_file" "CHAIN_ID" ""
+			fi
+		else
+			log "WARN" "Sequencer .env file not found. Adding empty CHAIN_ID to prevent warnings."
+			# Add empty CHAIN_ID to eth-explorer .env to avoid undefined variable warnings
+			update_env_var "$env_file" "CHAIN_ID" ""
+		fi
+	fi
+
+	# Check for missing EXPLORER_POSTGRES_PASSWORD and generate if empty
+	if grep -q "^EXPLORER_POSTGRES_PASSWORD=$" "$env_file" || ! grep -q "^EXPLORER_POSTGRES_PASSWORD=" "$env_file"; then
+		log "CONFIG" "Generating random PostgreSQL password for eth-explorer..."
+		local postgres_password=$(openssl rand -hex 16 | tr -d '\n')
+		update_env_var "$env_file" "EXPLORER_POSTGRES_PASSWORD" "$postgres_password"
+		log "SUCCESS" "PostgreSQL password generated and set for eth-explorer"
+	fi
+
+	# Check for missing SECRET_KEY_BASE and generate if empty
+	if grep -q "^SECRET_KEY_BASE=$" "$env_file" || ! grep -q "^SECRET_KEY_BASE=" "$env_file"; then
+		log "CONFIG" "Generating random secret key base for eth-explorer..."
+		local secret_key_base=$(openssl rand -base64 64 | tr -d '\n')
+		update_env_var "$env_file" "SECRET_KEY_BASE" "$secret_key_base"
+		log "SUCCESS" "Secret key base generated and set for eth-explorer"
+	fi
+
+	log "SUCCESS" "Eth-explorer configuration setup completed"
+}
+
 # Configuration management
 setup_configuration() {
 	log "CONFIG" "Setting up configuration..."
@@ -1130,6 +1288,11 @@ setup_configuration() {
 	# Setup eth-faucet configuration if deployed
 	if [[ $DEPLOY_ETH_FAUCET == "true" ]]; then
 		setup_eth_faucet_configuration
+	fi
+
+	# Setup eth-explorer configuration if deployed
+	if [[ $DEPLOY_ETH_EXPLORER == "true" ]]; then
+		setup_eth_explorer_configuration
 	fi
 
 	log "SUCCESS" "All configuration setup completed"
@@ -1255,6 +1418,10 @@ show_deployment_status() {
 
 	if [[ $DEPLOY_ETH_FAUCET == "true" ]]; then
 		echo "  💰 Eth-Faucet: $DEPLOYMENT_DIR/stacks/eth-faucet"
+	fi
+
+	if [[ $DEPLOY_ETH_EXPLORER == "true" ]]; then
+		echo "  🔍 Eth-Explorer: $DEPLOYMENT_DIR/stacks/eth-explorer"
 	fi
 
 	echo ""
@@ -1534,6 +1701,9 @@ main() {
 
 	# Interactive eth-faucet selection
 	select_eth_faucet_deployment
+
+	# Interactive eth-explorer selection
+	select_eth_explorer_deployment
 
 	# Show what will be deployed
 	local deployment_info="$SELECTED_SEQUENCER"
