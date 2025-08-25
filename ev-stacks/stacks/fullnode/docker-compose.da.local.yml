@@ -61,11 +61,7 @@ services:
 
   fullnode:
     container_name: fullnode
-    image: localhost/ev-node-evm-single:rolling
-    build:
-      context: ../single-sequencer
-      dockerfile: single-sequencer.Dockerfile
-    env_file: .env
+    image: ghcr.io/evstack/ev-node-evm-single:main
     ports:
       - $FULLNODE_EV_NODE_RPC_PORT:7331
       - $FULLNODE_EV_NODE_PROMETHEUS_PORT:26660
