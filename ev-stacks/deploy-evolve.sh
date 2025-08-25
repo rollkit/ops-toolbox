@@ -11,8 +11,7 @@ readonly SCRIPT_VERSION="1.2.0"
 readonly SCRIPT_NAME="deploy-evolve"
 readonly REPO_URL="https://github.com/evstack/ev-toolbox"
 readonly GITHUB_RAW_BASE="https://raw.githubusercontent.com/evstack/ev-toolbox"
-# readonly BASE_URL="$GITHUB_RAW_BASE/refs/heads/main/ev-stacks"
-readonly BASE_URL="$GITHUB_RAW_BASE/refs/heads/claude/local_da/ev-stacks"
+readonly BASE_URL="$GITHUB_RAW_BASE/refs/heads/main/ev-stacks"
 readonly DEPLOYMENT_DIR="$HOME/evolve-deployment"
 
 # File and directory constants
@@ -460,7 +459,6 @@ download_sequencer_files() {
 		"$docker_compose_file"
 		"stacks/single-sequencer/entrypoint.sequencer.sh"
 		"stacks/single-sequencer/genesis.json"
-		"stacks/single-sequencer/single-sequencer.Dockerfile"
 	)
 
 
@@ -1342,7 +1340,6 @@ validate_sequencer_files() {
 		".env"
 		"genesis.json"
 		"entrypoint.sequencer.sh"
-		"single-sequencer.Dockerfile"
 	)
 
 	for file in "${required_files[@]}"; do
