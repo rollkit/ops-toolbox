@@ -59,10 +59,9 @@ services:
     networks:
       - evstack_shared
 
-  ev-node-fullnode:
-    container_name: ev-node-fullnode
-    image: localhost/ev-node-evm-single:rolling
-    env_file: .env
+  fullnode:
+    container_name: fullnode
+    image: ghcr.io/evstack/ev-node-evm-single:main
     ports:
       - $FULLNODE_EV_NODE_RPC_PORT:7331
       - $FULLNODE_EV_NODE_PROMETHEUS_PORT:26660
@@ -71,7 +70,7 @@ services:
       ev-reth-fullnode:
         condition: service_started
     volumes:
-      - ev-node-fullnode-data:/root/.evm-single
+      - fullnode-data:/root/.evm-single
       - jwttoken-fullnode:/root/jwt:ro
       - celestia-node-export:/volumes/da_export:ro
       - sequencer-export:/volumes/sequencer_export
@@ -79,6 +78,8 @@ services:
       - ../../lib/logging.sh:/usr/local/lib/logging.sh:ro
     command:
       - start
+      - --rollkit.rpc.address=0.0.0.0:7331
+      - --rollkit.p2p.listen_address=/ip4/0.0.0.0/tcp/7676
       - --rollkit.instrumentation.prometheus
       - --rollkit.instrumentation.prometheus_listen_addr=:26660
     environment:
@@ -87,11 +88,11 @@ services:
       - EVM_JWT_PATH=/root/jwt/jwt.hex
       - EVM_BLOCK_TIME=500ms
       - DA_BLOCK_TIME=30s
-      - DA_ADDRESS=http://celestia-node:${DA_RPC_PORT}
-      - DA_HEADER_NAMESPACE=${DA_HEADER_NAMESPACE}
-      - DA_DATA_NAMESPACE=${DA_DATA_NAMESPACE}
+      - DA_ADDRESS=http://celestia-node:26658
+      - DA_HEADER_NAMESPACE=${FULLNODE_DA_HEADER_NAMESPACE}
+      - DA_DATA_NAMESPACE=${FULLNODE_DA_DATA_NAMESPACE}
       - DA_AUTH_TOKEN_PATH=/volumes/da_export/auth_token
-      - DA_START_HEIGHT=${DA_START_HEIGHT}
+      - DA_START_HEIGHT=${FULLNODE_DA_START_HEIGHT}
     networks:
       - evstack_shared
 
@@ -100,7 +101,7 @@ volumes:
     driver: local
   ev-reth-fullnode-data:
     driver: local
-  ev-node-fullnode-data:
+  fullnode-data:
     driver: local
   celestia-node-export:
     external: true

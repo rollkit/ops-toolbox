@@ -1,10 +1,10 @@
 ---
 services:
-  jwt-init-sequencer:
-    container_name: jwt-init-sequencer
+  jwt-init-fullnode:
+    container_name: jwt-init-fullnode
     image: alpine:3.22.0
     volumes:
-      - jwttoken-sequencer:/jwt
+      - jwttoken-fullnode:/jwt
     healthcheck:
       test: [CMD, test, -f, /jwt/jwt.hex]
       interval: 5s
@@ -17,20 +17,21 @@ services:
         openssl rand -hex 32 | tr -d '\n' > /jwt/jwt.hex;
       fi"
 
-  ev-reth-sequencer:
-    container_name: ev-reth-sequencer
+  ev-reth-fullnode:
+    container_name: ev-reth-fullnode
     image: ghcr.io/evstack/ev-reth:latest
     depends_on:
-      jwt-init-sequencer:
+      jwt-init-fullnode:
         condition: service_completed_successfully
     env_file: .env
     ports:
-      - $SEQUENCER_EV_RETH_PROMETHEUS_PORT:9001
+      - $FULLNODE_EV_RETH_RPC_PORT:8545
+      - $FULLNODE_EV_RETH_PROMETHEUS_PORT:9001
     restart: always
     volumes:
-      - ./genesis.json:/root/genesis.json:ro
-      - jwttoken-sequencer:/root/jwt:ro
-      - ev-reth-sequencer-data:/root/reth
+      - ../single-sequencer/genesis.json:/root/genesis.json:ro
+      - jwttoken-fullnode:/root/jwt:ro
+      - ev-reth-fullnode-data:/root/reth
     entrypoint: /bin/sh -c
     command:
       - |
@@ -58,22 +59,21 @@ services:
     networks:
       - evstack_shared
 
-  single-sequencer:
-    container_name: single-sequencer
+  fullnode:
+    container_name: fullnode
     image: ghcr.io/evstack/ev-node-evm-single:main
-    env_file: .env
     ports:
-      - $SEQUENCER_EV_NODE_PROMETHEUS_PORT:26660
+      - $FULLNODE_EV_NODE_RPC_PORT:7331
+      - $FULLNODE_EV_NODE_PROMETHEUS_PORT:26660
     restart: always
     depends_on:
-      ev-reth-sequencer:
+      ev-reth-fullnode:
         condition: service_started
     volumes:
-      - sequencer-data:/root/.evm-single
-      - jwttoken-sequencer:/root/jwt:ro
-      - celestia-node-export:/volumes/da_export:ro
+      - fullnode-data:/root/.evm-single
+      - jwttoken-fullnode:/root/jwt:ro
       - sequencer-export:/volumes/sequencer_export
-      - ./entrypoint.sequencer.sh:/usr/bin/entrypoint.sh
+      - ./entrypoint.fullnode.sh:/usr/bin/entrypoint.sh
       - ../../lib/logging.sh:/usr/local/lib/logging.sh:ro
     command:
       - start
@@ -82,33 +82,25 @@ services:
       - --rollkit.instrumentation.prometheus
       - --rollkit.instrumentation.prometheus_listen_addr=:26660
     environment:
-      - EVM_ENGINE_URL=http://ev-reth-sequencer:8551
-      - EVM_ETH_URL=http://ev-reth-sequencer:8545
+      - EVM_ENGINE_URL=http://ev-reth-fullnode:8551
+      - EVM_ETH_URL=http://ev-reth-fullnode:8545
       - EVM_JWT_PATH=/root/jwt/jwt.hex
       - EVM_BLOCK_TIME=500ms
-      - EVM_SIGNER_PASSPHRASE=${EVM_SIGNER_PASSPHRASE}
       - DA_BLOCK_TIME=30s
-      - DA_ADDRESS=http://celestia-node:26658
-      - DA_HEADER_NAMESPACE=${SEQUENCER_DA_HEADER_NAMESPACE}
-      - DA_DATA_NAMESPACE=${SEQUENCER_DA_DATA_NAMESPACE}
-      - DA_AUTH_TOKEN_PATH=/volumes/da_export/auth_token
-      - DA_START_HEIGHT=${SEQUENCER_DA_START_HEIGHT}
+      - DA_ADDRESS=http://local-da:7980
     networks:
       - evstack_shared
 
 volumes:
-  jwttoken-sequencer:
+  jwttoken-fullnode:
     driver: local
-  ev-reth-sequencer-data:
+  ev-reth-fullnode-data:
     driver: local
-  sequencer-data:
+  fullnode-data:
     driver: local
-  celestia-node-export:
-    external: true
-    name: celestia-node-export
   sequencer-export:
+    external: true
     name: sequencer-export
-    driver: local
 
 networks:
   evstack_shared:
