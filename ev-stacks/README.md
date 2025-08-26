@@ -86,10 +86,10 @@ Deploy a complete EVM stack with one command:
 
 ```bash
 # One-liner deployment (interactive)
-bash -c "bash -i <(curl -s https://raw.githubusercontent.com/evstack/ev-toolbox/main/ev-stack/deploy-evolve.sh)"
+bash -c "bash -i <(curl -s https://raw.githubusercontent.com/evstack/ev-toolbox/refs/heads/main/ev-stacks/deploy-evolve.sh)"
 
 # Or download and run locally
-wget https://raw.githubusercontent.com/evstack/ev-toolbox/main/ev-stack/deploy-evolve.sh
+wget https://raw.githubusercontent.com/evstack/ev-toolbox/refs/heads/main/ev-stacks/deploy-evolve.sh
 chmod +x deploy-evolve.sh
 ./deploy-evolve.sh
 ```
