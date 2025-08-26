@@ -113,7 +113,7 @@ services:
 
       # App Options
       NEXT_PUBLIC_APP_HOST: localhost
-      NEXT_PUBLIC_APP_PORT: 3000
+      NEXT_PUBLIC_APP_PORT: ${EXPLORER_FRONTEND_PORT}
       NEXT_PUBLIC_APP_PROTOCOL: http
 
       # Stats options
@@ -131,7 +131,7 @@ services:
       # Misc options
       NEXT_PUBLIC_IS_TESTNET: true
     ports:
-      - 3000:3000
+      - ${EXPLORER_FRONTEND_PORT}:3000
     networks:
       - evstack_shared
 
