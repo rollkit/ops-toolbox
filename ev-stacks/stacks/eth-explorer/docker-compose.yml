@@ -1,0 +1,160 @@
+services:
+  db:
+    container_name: blockscout-db
+    image: postgres:17
+    shm_size: 256m
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER: blockscout
+      POSTGRES_PASSWORD: ${EXPLORER_POSTGRES_PASSWORD}
+      POSTGRES_DB: blockscout
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    command: postgres -c max_connections=200 -c shared_buffers=512MB
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U blockscout -d blockscout" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - evstack_shared
+
+  stats-db:
+    container_name: stats-db
+    image: postgres:17
+    shm_size: 256m
+    restart: unless-stopped
+    command: postgres -c 'max_connections=200'
+    env_file: .env
+    environment:
+      POSTGRES_DB: stats
+      POSTGRES_USER: stats
+      POSTGRES_PASSWORD: ${EXPLORER_POSTGRES_PASSWORD}
+    volumes:
+      - pg-stats-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stats -d stats"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - evstack_shared
+
+  redis:
+    image: redis:7-alpine
+    container_name: blockscout-redis
+    restart: unless-stopped
+    command: redis-server
+    volumes:
+      - redis-data:/data
+    networks:
+      - evstack_shared
+
+  stats:
+    container_name: stats
+    depends_on:
+      stats-db:
+        condition: service_healthy
+    image: ghcr.io/blockscout/stats:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+        STATS__DB_URL: postgres://stats:${EXPLORER_POSTGRES_PASSWORD}@${EXPLORER_STATS_DB_HOST}:${EXPLORER_STATS_DB_PORT}/stats?ssl=false
+        STATS__BLOCKSCOUT_DB_URL: postgres://blockscout:${EXPLORER_POSTGRES_PASSWORD}@${EXPLORER_DB_HOST}:${EXPLORER_DB_PORT}/blockscout?ssl=false
+        STATS__BLOCKSCOUT_API_URL: http://${EXPLORER_BACKEND_HOST}:4000
+        STATS__SERVER__HTTP__ADDR: 0.0.0.0:8051
+        STATS__RUN_MIGRATIONS: true
+    networks:
+      - evstack_shared
+
+  blockscout-backend:
+    image: ghcr.io/blockscout/blockscout:9.0.2
+    container_name: blockscout-backend
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    env_file: .env
+    command: >
+      sh -c "bin/blockscout eval 'Elixir.Explorer.ReleaseTasks.create_and_migrate()' &&
+            bin/blockscout start"
+    environment:
+      ACCOUNT_REDIS_URL: redis://${EXPLORER_REDIS_HOST}:6379
+      DATABASE_URL: postgres://blockscout:${EXPLORER_POSTGRES_PASSWORD}@${EXPLORER_DB_HOST}:${EXPLORER_DB_PORT}/blockscout?ssl=false
+      ETHEREUM_JSONRPC_HTTP_URL: http://${RETH_HOST}:${RETH_HOST_HTTP_PORT}
+      ETHEREUM_JSONRPC_WS_URL:  ws://${RETH_HOST}:${RETH_HOST_WS_PORT}
+      NETWORK: Eden Testnet
+      CHAIN_ID: ${CHAIN_ID}
+      COIN: ETH
+    networks:
+      - evstack_shared
+
+  blockscout-frontend:
+    depends_on:
+      - blockscout-backend
+      - smart-contract-verifier
+      - stats
+    container_name: blockscout-frontend
+    image: ghcr.io/blockscout/frontend:v2.2.1
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      HOSTNAME: 0.0.0.0
+
+      # API options
+      NEXT_PUBLIC_API_HOST: ${EXPLORER_BACKEND_HOST}
+      NEXT_PUBLIC_API_PORT: 4000
+      NEXT_PUBLIC_API_PROTOCOL: http
+      NEXT_PUBLIC_API_WEBSOCKET_PROTOCOL: wss
+      NEXT_PUBLIC_API_SPEC_URL: https://raw.githubusercontent.com/blockscout/blockscout-api-v2-swagger/main/swagger.yaml
+
+      # App Options
+      NEXT_PUBLIC_APP_HOST: localhost
+      NEXT_PUBLIC_APP_PORT: ${EXPLORER_FRONTEND_PORT}
+      NEXT_PUBLIC_APP_PROTOCOL: http
+
+      # Stats options
+      NEXT_PUBLIC_STATS_API_HOST: http://${EXPLORER_STATS_HOST}:8051
+
+      # Network options
+      NEXT_PUBLIC_NETWORK_NAME: evstacks-devnet
+      NEXT_PUBLIC_NETWORK_SHORT_NAME: evstacks Devnet
+      NEXT_PUBLIC_NETWORK_ID: ${CHAIN_ID}
+      NEXT_PUBLIC_NETWORK_CURRENCY_NAME: Ether
+      NEXT_PUBLIC_NETWORK_CURRENCY_SYMBOL: ETH
+      NEXT_PUBLIC_NETWORK_CURRENCY_DECIMALS: 18
+      #      NEXT_PUBLIC_NETWORK_ICON: <link>
+
+      # Misc options
+      NEXT_PUBLIC_IS_TESTNET: true
+    ports:
+      - ${EXPLORER_FRONTEND_PORT}:3000
+    networks:
+      - evstack_shared
+
+  smart-contract-verifier:
+    image: ghcr.io/blockscout/smart-contract-verifier:v1.10.0
+    container_name: sc-verifier
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://blockscout:${EXPLORER_POSTGRES_PASSWORD}@${EXPLORER_DB_HOST}/blockscout
+    depends_on:
+      - db
+    networks:
+      - evstack_shared
+
+volumes:
+  pg-data:
+    driver: local
+  pg-stats-data:
+    driver: local
+  redis-data:
+    driver: local
+
+networks:
+  evstack_shared:
+    external: true

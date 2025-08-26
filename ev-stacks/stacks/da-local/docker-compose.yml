@@ -1,0 +1,13 @@
+services:
+  local-da:
+    container_name: local-da
+    image: ghcr.io/evstack/local-da:${LOCAL_DA_TAG}
+    env_file: .env
+    restart: always
+    command: ["-listen-all"]
+    networks:
+      - evstack_shared
+
+networks:
+  evstack_shared:
+    name: evstack_shared

@@ -5,7 +5,52 @@ All notable changes to the EV-Stacks deployment framework will be documented in 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.0] - 2025-12-08
+## [1.2.0] - 2025-08-25
+
+### Added
+- **Local Data Availability (DA) Support**: New `da-local` stack for development and testing environments
+  - Lightweight local DA layer that doesn't require external dependencies
+  - Ideal for rapid development and testing scenarios
+- **Ethereum Faucet Service**: New `eth-faucet` stack for easy token distribution
+  - Web-based interface for distributing test tokens
+  - Configurable private key management for faucet operations
+- **Blockchain Explorer Service**: New `eth-explorer` stack powered by Blockscout
+  - Complete blockchain exploration capabilities
+  - PostgreSQL database integration for data persistence
+  - Automatic secret key generation with security disclaimers
+  - Chain ID synchronization with sequencer configuration
+  - Web interface for exploring transactions, blocks, and addresses
+- **Enhanced DA Layer Selection**: Interactive deployment script now supports choosing between:
+  - Local DA for development (`da-local`)
+  - Celestia DA for production (`da-celestia`)
+- **Integrated Docker Compose Files**: New DA-specific compose files for better integration
+  - `docker-compose.da.local.yml` for local DA integration
+  - `docker-compose.da.celestia.yml` for Celestia DA integration
+  - Automatic selection based on chosen DA layer
+
+### Changed
+- **Deployment Script Enhancements**:
+  - Improved service endpoint documentation in deployment status
+
+### Removed
+- **Custom Dockerfile Cleanup**: Removed custom `ev-node-evm-single` Dockerfile in favor of standardized configurations
+
+### Technical Details
+- The deployment script now supports up to 6 different service stacks:
+  - Single Sequencer (required)
+  - Fullnode (optional)
+  - DA Celestia (optional)
+  - DA Local (optional)
+  - Eth-Faucet (optional)
+  - Eth-Explorer (optional)
+
+### Migration Guide
+Users upgrading from version 1.1.0 can:
+1. Run the updated deployment script to access new service options
+2. Choose to deploy additional services (faucet, explorer, local DA) alongside existing infrastructure
+3. Existing deployments remain fully compatible with no breaking changes
+
+## [1.1.0] - 2025-08-12
 
 ### Added
 - Support for separate header and data namespaces in Celestia DA integration

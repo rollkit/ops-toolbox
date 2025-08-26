@@ -7,7 +7,7 @@
 set -euo pipefail
 
 # Script metadata
-readonly SCRIPT_VERSION="1.1.0"
+readonly SCRIPT_VERSION="1.2.0"
 readonly SCRIPT_NAME="deploy-evolve"
 readonly REPO_URL="https://github.com/evstack/ev-toolbox"
 readonly GITHUB_RAW_BASE="https://raw.githubusercontent.com/evstack/ev-toolbox"
@@ -18,6 +18,7 @@ readonly DEPLOYMENT_DIR="$HOME/evolve-deployment"
 readonly ENV_FILE=".env"
 readonly DOCKER_COMPOSE_FILE="docker-compose.yml"
 readonly DOCKER_COMPOSE_DA_CELESTIA_FILE="docker-compose.da.celestia.yml"
+readonly DOCKER_COMPOSE_DA_LOCAL_FILE="docker-compose.da.local.yml"
 readonly GENESIS_FILE="genesis.json"
 readonly SEQUENCER_ENTRYPOINT="entrypoint.sequencer.sh"
 readonly FULLNODE_ENTRYPOINT="entrypoint.fullnode.sh"
@@ -32,7 +33,10 @@ readonly STACKS_DIR="stacks"
 readonly LIB_DIR="lib"
 readonly SINGLE_SEQUENCER_DIR="single-sequencer"
 readonly FULLNODE_DIR="fullnode"
+readonly ETH_FAUCET_DIR="eth-faucet"
+readonly ETH_EXPLORER_DIR="eth-explorer"
 readonly DA_CELESTIA_DIR="da-celestia"
+readonly DA_LOCAL_DIR="da-local"
 
 # Container and service name patterns
 readonly SEQUENCER_CONTAINERS="(sequencer|reth-sequencer|jwt-init)"
@@ -52,6 +56,7 @@ readonly FULLNODE_RPC_PORT="8545"
 readonly FULLNODE_PROMETHEUS_PORT="9002"
 readonly FULLNODE_NODE_RPC_PORT="7331"
 readonly FULLNODE_NODE_METRICS_PORT="26662"
+readonly ETH_FAUCET_PORT="8081"
 
 # Color codes for output
 readonly RED='\033[0;31m'
@@ -67,9 +72,12 @@ FORCE_INSTALL=false
 LOG_FILE=""
 CLEANUP_ON_EXIT=true
 DEPLOY_DA_CELESTIA=false
+DEPLOY_DA_LOCAL=false
 SELECTED_DA=""
 SELECTED_SEQUENCER=""
 DEPLOY_FULLNODE=false
+DEPLOY_ETH_FAUCET=false
+DEPLOY_ETH_EXPLORER=false
 
 # Enhanced logging function that extends the shared one with colors and file logging
 log() {
@@ -285,28 +293,138 @@ select_fullnode_deployment() {
 	echo ""
 }
 
+# Interactive eth-faucet selection
+select_eth_faucet_deployment() {
+	log "CONFIG" "Selecting eth-faucet deployment option..."
+
+	echo ""
+	echo "💰 Do you want to deploy an eth-faucet service?"
+	echo "  1) Yes - Deploy eth-faucet for easy token distribution"
+	echo "  2) No - Skip eth-faucet deployment"
+	echo ""
+	echo "ℹ️  Note: Eth-faucet provides a web interface for distributing test tokens"
+	echo ""
+
+	while true; do
+		echo -n "Please select an option (1-2): "
+		read -r choice
+
+		case $choice in
+		1)
+			DEPLOY_ETH_FAUCET=true
+			log "SUCCESS" "Selected: Deploy eth-faucet service"
+			break
+			;;
+		2)
+			DEPLOY_ETH_FAUCET=false
+			log "SUCCESS" "Selected: Skip eth-faucet"
+			break
+			;;
+		*)
+			echo "❌ Invalid choice. Please enter 1 or 2."
+			;;
+		esac
+	done
+
+	echo ""
+}
+
+# Show SECRET_KEY_BASE disclaimer for eth-explorer
+show_eth_explorer_disclaimer() {
+	echo ""
+	echo "🔐 =========================================="
+	echo "🔐 IMPORTANT SECURITY NOTICE"
+	echo "🔐 =========================================="
+	echo ""
+	echo "⚠️  The eth-explorer (Blockscout) deployment includes a default SECRET_KEY_BASE"
+	echo "   for demonstration purposes. For production or secure environments, you"
+	echo "   MUST generate your own SECRET_KEY_BASE."
+	echo ""
+	echo "📖 As documented in the Blockscout manual deployment guide:"
+	echo "   https://docs.blockscout.com/setup/deployment/manual-deployment-guide"
+	echo ""
+	echo "🔧 To generate a new SECRET_KEY_BASE:"
+	echo "   1. Use: openssl rand -base64 64"
+	echo "   2. Replace the SECRET_KEY_BASE value in:"
+	echo "      $DEPLOYMENT_DIR/stacks/eth-explorer/.env"
+	echo ""
+	echo "🚨 Using the default SECRET_KEY_BASE in production environments"
+	echo "   poses a significant security risk!"
+	echo ""
+	echo "Press any key to acknowledge and continue..."
+	read -n 1 -s
+	echo ""
+	echo "✅ Disclaimer acknowledged. Continuing with deployment..."
+	echo ""
+}
+
+# Interactive eth-explorer selection
+select_eth_explorer_deployment() {
+	log "CONFIG" "Selecting eth-explorer deployment option..."
+
+	echo ""
+	echo "🔍 Do you want to deploy an eth-explorer service?"
+	echo "  1) Yes - Deploy eth-explorer (Blockscout) for blockchain exploration"
+	echo "  2) No - Skip eth-explorer deployment"
+	echo ""
+	echo "ℹ️  Note: Eth-explorer provides a web interface for exploring blockchain data"
+	echo ""
+
+	while true; do
+		echo -n "Please select an option (1-2): "
+		read -r choice
+
+		case $choice in
+		1)
+			DEPLOY_ETH_EXPLORER=true
+			log "SUCCESS" "Selected: Deploy eth-explorer service"
+			# Show security disclaimer after user chooses to deploy
+			show_eth_explorer_disclaimer
+			break
+			;;
+		2)
+			DEPLOY_ETH_EXPLORER=false
+			log "SUCCESS" "Selected: Skip eth-explorer"
+			break
+			;;
+		*)
+			echo "❌ Invalid choice. Please enter 1 or 2."
+			;;
+		esac
+	done
+
+	echo ""
+}
+
 # Interactive DA selection
 select_da_layer() {
 	log "CONFIG" "Selecting Data Availability layer..."
 
 	echo ""
 	echo "🌌 Available Data Availability (DA) layers:"
-	echo "  1) da-celestia - Celestia modular DA network (mocha-4)"
+	echo "  1) da-local - Local DA for development and testing"
+	echo "  2) da-celestia - Celestia modular DA network (mocha-4)"
 	echo ""
 
 	while true; do
-		echo -n "Please select a DA layer (1): "
+		echo -n "Please select a DA layer (1-2): "
 		read -r choice
 
 		case $choice in
 		1)
+			SELECTED_DA="da-local"
+			DEPLOY_DA_LOCAL=true
+			log "SUCCESS" "Selected DA layer: Local DA"
+			break
+			;;
+		2)
 			SELECTED_DA="da-celestia"
 			DEPLOY_DA_CELESTIA=true
 			log "SUCCESS" "Selected DA layer: Celestia (mocha-4)"
 			break
 			;;
 		*)
-			echo "❌ Invalid choice. Please enter 1."
+			echo "❌ Invalid choice. Please enter 1 or 2."
 			;;
 		esac
 	done
@@ -328,6 +446,9 @@ download_sequencer_files() {
 	if [[ $DEPLOY_DA_CELESTIA == "true" ]]; then
 		docker_compose_file="stacks/single-sequencer/docker-compose.da.celestia.yml"
 		log "CONFIG" "Using DA Celestia integrated docker-compose file"
+	elif [[ $DEPLOY_DA_LOCAL == "true" ]]; then
+		docker_compose_file="stacks/single-sequencer/docker-compose.da.local.yml"
+		log "CONFIG" "Using DA Local integrated docker-compose file"
 	else
 		docker_compose_file="stacks/single-sequencer/docker-compose.yml"
 		log "CONFIG" "Using standalone docker-compose file"
@@ -338,7 +459,6 @@ download_sequencer_files() {
 		"$docker_compose_file"
 		"stacks/single-sequencer/entrypoint.sequencer.sh"
 		"stacks/single-sequencer/genesis.json"
-		"stacks/single-sequencer/single-sequencer.Dockerfile"
 	)
 
 
@@ -346,7 +466,7 @@ download_sequencer_files() {
 		log "DEBUG" "Downloading $file..."
 		local filename=$(basename "$file")
 		# Always save as docker-compose.yml regardless of source file name
-		if [[ $filename == "docker-compose.da.celestia.yml" ]]; then
+		if [[ $filename == "docker-compose.da.celestia.yml" || $filename == "docker-compose.da.local.yml" ]]; then
 			filename="docker-compose.yml"
 		fi
 		curl -fsSL "$BASE_URL/$file" -o "$filename" || error_exit "Failed to download $filename"
@@ -367,9 +487,22 @@ download_fullnode_files() {
 
 	cd "$DEPLOYMENT_DIR/stacks/fullnode" || error_exit "Failed to change to fullnode directory"
 
+	# Choose the appropriate docker-compose file based on DA selection
+	local docker_compose_file
+	if [[ $DEPLOY_DA_CELESTIA == "true" ]]; then
+		docker_compose_file="stacks/fullnode/docker-compose.da.celestia.yml"
+		log "CONFIG" "Using DA Celestia integrated docker-compose file for fullnode"
+	elif [[ $DEPLOY_DA_LOCAL == "true" ]]; then
+		docker_compose_file="stacks/fullnode/docker-compose.da.local.yml"
+		log "CONFIG" "Using DA Local integrated docker-compose file for fullnode"
+	else
+		docker_compose_file="stacks/fullnode/docker-compose.yml"
+		log "CONFIG" "Using standalone docker-compose file for fullnode"
+	fi
+
 	local files=(
 		"stacks/fullnode/.env"
-		"stacks/fullnode/docker-compose.da.celestia.yml"
+		"$docker_compose_file"
 		"stacks/fullnode/entrypoint.fullnode.sh"
 	)
 
@@ -377,7 +510,7 @@ download_fullnode_files() {
 		log "DEBUG" "Downloading $file..."
 		local filename=$(basename "$file")
 		# Always save as docker-compose.yml regardless of source file name
-		if [[ $filename == "docker-compose.da.celestia.yml" ]]; then
+		if [[ $filename == "docker-compose.da.celestia.yml" || $filename == "docker-compose.da.local.yml" ]]; then
 			filename="docker-compose.yml"
 		fi
 		curl -fsSL "$BASE_URL/$file" -o "$filename" || error_exit "Failed to download $filename"
@@ -416,6 +549,75 @@ download_da_celestia_files() {
 	chmod +x entrypoint.appd.sh entrypoint.da.sh || error_exit "Failed to make entrypoint scripts executable"
 
 	log "SUCCESS" "DA-Celestia deployment files downloaded successfully"
+}
+
+# Download deployment files for da-local
+download_da_local_files() {
+	log "DOWNLOAD" "Downloading da-local deployment files..."
+
+	# Create da-local subfolder
+	mkdir -p "$DEPLOYMENT_DIR/stacks/da-local" || error_exit "Failed to create da-local directory"
+
+	cd "$DEPLOYMENT_DIR/stacks/da-local" || error_exit "Failed to change to da-local directory"
+
+	local files=(
+		"stacks/da-local/.env"
+		"stacks/da-local/docker-compose.yml"
+	)
+
+	for file in "${files[@]}"; do
+		log "DEBUG" "Downloading $file..."
+		local filename=$(basename "$file")
+		curl -fsSL "$BASE_URL/$file" -o "$filename" || error_exit "Failed to download $filename"
+	done
+
+	log "SUCCESS" "DA-Local deployment files downloaded successfully"
+}
+
+# Download deployment files for eth-faucet
+download_eth_faucet_files() {
+	log "DOWNLOAD" "Downloading eth-faucet deployment files..."
+
+	# Create eth-faucet subfolder
+	mkdir -p "$DEPLOYMENT_DIR/stacks/eth-faucet" || error_exit "Failed to create eth-faucet directory"
+
+	cd "$DEPLOYMENT_DIR/stacks/eth-faucet" || error_exit "Failed to change to eth-faucet directory"
+
+	local files=(
+		"stacks/eth-faucet/.env"
+		"stacks/eth-faucet/docker-compose.yml"
+	)
+
+	for file in "${files[@]}"; do
+		log "DEBUG" "Downloading $file..."
+		local filename=$(basename "$file")
+		curl -fsSL "$BASE_URL/$file" -o "$filename" || error_exit "Failed to download $filename"
+	done
+
+	log "SUCCESS" "Eth-faucet deployment files downloaded successfully"
+}
+
+# Download deployment files for eth-explorer
+download_eth_explorer_files() {
+	log "DOWNLOAD" "Downloading eth-explorer deployment files..."
+
+	# Create eth-explorer subfolder
+	mkdir -p "$DEPLOYMENT_DIR/stacks/eth-explorer" || error_exit "Failed to create eth-explorer directory"
+
+	cd "$DEPLOYMENT_DIR/stacks/eth-explorer" || error_exit "Failed to change to eth-explorer directory"
+
+	local files=(
+		"stacks/eth-explorer/.env"
+		"stacks/eth-explorer/docker-compose.yml"
+	)
+
+	for file in "${files[@]}"; do
+		log "DEBUG" "Downloading $file..."
+		local filename=$(basename "$file")
+		curl -fsSL "$BASE_URL/$file" -o "$filename" || error_exit "Failed to download $filename"
+	done
+
+	log "SUCCESS" "Eth-explorer deployment files downloaded successfully"
 }
 
 # Download shared library files
@@ -465,6 +667,21 @@ download_deployment_files() {
 	# Download da-celestia files if requested
 	if [[ $DEPLOY_DA_CELESTIA == "true" ]]; then
 		download_da_celestia_files
+	fi
+
+	# Download da-local files if requested
+	if [[ $DEPLOY_DA_LOCAL == "true" ]]; then
+		download_da_local_files
+	fi
+
+	# Download eth-faucet files if requested
+	if [[ $DEPLOY_ETH_FAUCET == "true" ]]; then
+		download_eth_faucet_files
+	fi
+
+	# Download eth-explorer files if requested
+	if [[ $DEPLOY_ETH_EXPLORER == "true" ]]; then
+		download_eth_explorer_files
 	fi
 
 	log "SUCCESS" "All deployment files downloaded successfully"
@@ -530,7 +747,7 @@ setup_genesis_allocation() {
 	echo "   to access the funds allocated to these addresses."
 	echo ""
 	echo "📝 Please enter Ethereum addresses (one per line). You must provide at least one valid address:"
-	echo "   Example: 0x742d35Cc6634C0532925a3b8D4C9db96590c6C87"
+	echo "   Example: 0x61F929626841DC9ed2268e62Ef408Bd29d995293"
 	echo ""
 
 	local user_addresses=()
@@ -565,7 +782,7 @@ setup_genesis_allocation() {
 			echo "💡 You can add more addresses or press Enter to continue with the current addresses."
 		else
 			echo "❌ Invalid Ethereum address format. Please enter a valid address starting with 0x followed by 40 hexadecimal characters."
-			echo "   Example: 0x742d35Cc6634C0532925a3b8D4C9db96590c6C87"
+			echo "   Example: 0x61F929626841DC9ed2268e62Ef408Bd29d995293"
 		fi
 	done
 
@@ -724,29 +941,29 @@ setup_sequencer_configuration() {
 			local da_data_namespace=$(grep "^DA_DATA_NAMESPACE=" "$da_celestia_env" | cut -d'=' -f2 | tr -d '"')
 
 			if [[ -n $da_header_namespace ]]; then
-				# Add or update DA_HEADER_NAMESPACE in single-sequencer .env
-				update_env_var "$env_file" "DA_HEADER_NAMESPACE" "$da_header_namespace"
-				log "SUCCESS" "DA_HEADER_NAMESPACE set to: $da_header_namespace"
+				# Add or update SEQUENCER_DA_HEADER_NAMESPACE in single-sequencer .env
+				update_env_var "$env_file" "SEQUENCER_DA_HEADER_NAMESPACE" "$da_header_namespace"
+				log "SUCCESS" "SEQUENCER_DA_HEADER_NAMESPACE set to: $da_header_namespace"
 			else
 				log "WARN" "DA_HEADER_NAMESPACE is empty in da-celestia .env file. Single-sequencer may show warnings."
-				# Still add the empty DA_HEADER_NAMESPACE to single-sequencer .env to avoid undefined variable warnings
-				update_env_var "$env_file" "DA_HEADER_NAMESPACE" ""
+				# Still add the empty SEQUENCER_DA_HEADER_NAMESPACE to single-sequencer .env to avoid undefined variable warnings
+				update_env_var "$env_file" "SEQUENCER_DA_HEADER_NAMESPACE" ""
 			fi
 
 			if [[ -n $da_data_namespace ]]; then
-				# Add or update DA_DATA_NAMESPACE in single-sequencer .env
-				update_env_var "$env_file" "DA_DATA_NAMESPACE" "$da_data_namespace"
-				log "SUCCESS" "DA_DATA_NAMESPACE set to: $da_data_namespace"
+				# Add or update SEQUENCER_DA_DATA_NAMESPACE in single-sequencer .env
+				update_env_var "$env_file" "SEQUENCER_DA_DATA_NAMESPACE" "$da_data_namespace"
+				log "SUCCESS" "SEQUENCER_DA_DATA_NAMESPACE set to: $da_data_namespace"
 			else
 				log "WARN" "DA_DATA_NAMESPACE is empty in da-celestia .env file. Single-sequencer may show warnings."
-				# Still add the empty DA_DATA_NAMESPACE to single-sequencer .env to avoid undefined variable warnings
-				update_env_var "$env_file" "DA_DATA_NAMESPACE" ""
+				# Still add the empty SEQUENCER_DA_DATA_NAMESPACE to single-sequencer .env to avoid undefined variable warnings
+				update_env_var "$env_file" "SEQUENCER_DA_DATA_NAMESPACE" ""
 			fi
 		else
 			log "WARN" "DA-Celestia .env file not found. Adding empty DA namespaces to prevent warnings."
 			# Add empty DA namespaces to single-sequencer .env to avoid undefined variable warnings
-			update_env_var "$env_file" "DA_HEADER_NAMESPACE" ""
-			update_env_var "$env_file" "DA_DATA_NAMESPACE" ""
+			update_env_var "$env_file" "SEQUENCER_DA_HEADER_NAMESPACE" ""
+			update_env_var "$env_file" "SEQUENCER_DA_DATA_NAMESPACE" ""
 		fi
 	fi
 
@@ -806,29 +1023,29 @@ setup_fullnode_configuration() {
 			local da_data_namespace=$(grep "^DA_DATA_NAMESPACE=" "$da_celestia_env" | cut -d'=' -f2 | tr -d '"')
 
 			if [[ -n $da_header_namespace ]]; then
-				# Add or update DA_HEADER_NAMESPACE in fullnode .env
-				update_env_var "$env_file" "DA_HEADER_NAMESPACE" "$da_header_namespace"
-				log "SUCCESS" "DA_HEADER_NAMESPACE set to: $da_header_namespace"
+				# Add or update FULLNODE_DA_HEADER_NAMESPACE in fullnode .env
+				update_env_var "$env_file" "FULLNODE_DA_HEADER_NAMESPACE" "$da_header_namespace"
+				log "SUCCESS" "FULLNODE_DA_HEADER_NAMESPACE set to: $da_header_namespace"
 			else
 				log "WARN" "DA_HEADER_NAMESPACE is empty in da-celestia .env file. Fullnode may show warnings."
-				# Still add the empty DA_HEADER_NAMESPACE to fullnode .env to avoid undefined variable warnings
-				update_env_var "$env_file" "DA_HEADER_NAMESPACE" ""
+				# Still add the empty FULLNODE_DA_HEADER_NAMESPACE to fullnode .env to avoid undefined variable warnings
+				update_env_var "$env_file" "FULLNODE_DA_HEADER_NAMESPACE" ""
 			fi
 
 			if [[ -n $da_data_namespace ]]; then
-				# Add or update DA_DATA_NAMESPACE in fullnode .env
-				update_env_var "$env_file" "DA_DATA_NAMESPACE" "$da_data_namespace"
-				log "SUCCESS" "DA_DATA_NAMESPACE set to: $da_data_namespace"
+				# Add or update FULLNODE_DA_DATA_NAMESPACE in fullnode .env
+				update_env_var "$env_file" "FULLNODE_DA_DATA_NAMESPACE" "$da_data_namespace"
+				log "SUCCESS" "FULLNODE_DA_DATA_NAMESPACE set to: $da_data_namespace"
 			else
 				log "WARN" "DA_DATA_NAMESPACE is empty in da-celestia .env file. Fullnode may show warnings."
-				# Still add the empty DA_DATA_NAMESPACE to fullnode .env to avoid undefined variable warnings
-				update_env_var "$env_file" "DA_DATA_NAMESPACE" ""
+				# Still add the empty FULLNODE_DA_DATA_NAMESPACE to fullnode .env to avoid undefined variable warnings
+				update_env_var "$env_file" "FULLNODE_DA_DATA_NAMESPACE" ""
 			fi
 		else
 			log "WARN" "DA-Celestia .env file not found. Adding empty DA namespaces to prevent warnings."
 			# Add empty DA namespaces to fullnode .env to avoid undefined variable warnings
-			update_env_var "$env_file" "DA_HEADER_NAMESPACE" ""
-			update_env_var "$env_file" "DA_DATA_NAMESPACE" ""
+			update_env_var "$env_file" "FULLNODE_DA_HEADER_NAMESPACE" ""
+			update_env_var "$env_file" "FULLNODE_DA_DATA_NAMESPACE" ""
 		fi
 	fi
 
@@ -902,6 +1119,153 @@ setup_da_celestia_configuration() {
 	log "SUCCESS" "DA-Celestia configuration setup completed"
 }
 
+# Helper function to validate private key format
+validate_private_key() {
+	local private_key="$1"
+
+	# Check if private key is 64 hex characters (without 0x prefix) or 66 characters (with 0x prefix)
+	if [[ $private_key =~ ^0x[a-fA-F0-9]{64}$ ]] || [[ $private_key =~ ^[a-fA-F0-9]{64}$ ]]; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+# Configuration management for eth-faucet
+setup_eth_faucet_configuration() {
+	log "CONFIG" "Setting up eth-faucet configuration..."
+
+	# Change to eth-faucet directory
+	cd "$DEPLOYMENT_DIR/stacks/eth-faucet" || error_exit "Failed to change to eth-faucet directory"
+
+	local env_file=".env"
+
+	if [[ ! -f $env_file ]]; then
+		error_exit "Eth-faucet environment file not found: $env_file"
+	fi
+
+	if [[ ! -r $env_file ]]; then
+		error_exit "Eth-faucet environment file is not readable: $env_file"
+	fi
+
+	# Check for missing PRIVATE_KEY and prompt user
+	if grep -q "^PRIVATE_KEY=$" "$env_file" || ! grep -q "^PRIVATE_KEY=" "$env_file"; then
+		echo ""
+		echo "🔑 Private Key Configuration for Eth-Faucet"
+		echo "============================================"
+		echo ""
+		echo "The eth-faucet service requires a private key to sign transactions and distribute tokens."
+		echo ""
+		echo "⚠️  SECURITY WARNING:"
+		echo "   • This private key will control the faucet's funds"
+		echo "   • Make sure this account has sufficient balance for token distribution"
+		echo "   • Use a dedicated account for the faucet, not your main wallet"
+		echo "   • The private key will be stored in the .env file"
+		echo ""
+		echo "📝 Private key format:"
+		echo "   • 64 hexadecimal characters (without 0x prefix)"
+		echo "   • OR 66 characters (with 0x prefix)"
+		echo "   • Example: 0x11f736e572551c472f4308299735c718447b0d03980b18c951950bbc5beb3ebb"
+		echo ""
+
+		while true; do
+			echo -n "Please enter the private key for the eth-faucet: "
+			read -r private_key
+
+			# Validate private key format
+			if [[ -z "$private_key" ]]; then
+				echo "❌ Error: Private key cannot be empty."
+				continue
+			fi
+
+			if validate_private_key "$private_key"; then
+				# Ensure private key has 0x prefix for consistency
+				if [[ ! $private_key =~ ^0x ]]; then
+					private_key="0x$private_key"
+				fi
+				echo "✅ Valid private key format."
+				break
+			else
+				echo "❌ Error: Invalid private key format."
+				echo "   Private key must be 64 hexadecimal characters (optionally prefixed with 0x)."
+				echo "   Example: 0x11f736e572551c472f4308299735c718447b0d03980b18c951950bbc5beb3ebb"
+			fi
+		done
+
+		# Update private key in .env file
+		update_env_var "$env_file" "PRIVATE_KEY" "$private_key"
+		log "SUCCESS" "Private key configured for eth-faucet"
+
+		echo ""
+		echo "✅ Eth-faucet private key has been configured."
+		echo "💡 Make sure the corresponding address has sufficient balance for token distribution."
+		echo ""
+	fi
+
+	log "SUCCESS" "Eth-faucet configuration setup completed"
+}
+
+# Configuration management for eth-explorer
+setup_eth_explorer_configuration() {
+	log "CONFIG" "Setting up eth-explorer configuration..."
+
+	# Change to eth-explorer directory
+	cd "$DEPLOYMENT_DIR/stacks/eth-explorer" || error_exit "Failed to change to eth-explorer directory"
+
+	local env_file=".env"
+
+	if [[ ! -f $env_file ]]; then
+		error_exit "Eth-explorer environment file not found: $env_file"
+	fi
+
+	if [[ ! -r $env_file ]]; then
+		error_exit "Eth-explorer environment file is not readable: $env_file"
+	fi
+
+	# Check for missing CHAIN_ID and get it from sequencer configuration
+	if grep -q "^CHAIN_ID=$" "$env_file" || ! grep -q "^CHAIN_ID=" "$env_file"; then
+		log "CONFIG" "Setting CHAIN_ID for eth-explorer from sequencer configuration..."
+
+		# Get CHAIN_ID from single-sequencer .env file
+		local sequencer_env="$DEPLOYMENT_DIR/stacks/single-sequencer/.env"
+		if [[ -f $sequencer_env ]]; then
+			local chain_id=$(grep "^CHAIN_ID=" "$sequencer_env" | cut -d'=' -f2 | tr -d '"')
+
+			if [[ -n $chain_id ]]; then
+				# Update CHAIN_ID in eth-explorer .env file
+				update_env_var "$env_file" "CHAIN_ID" "$chain_id"
+				log "SUCCESS" "CHAIN_ID set to: $chain_id"
+			else
+				log "WARN" "CHAIN_ID is empty in sequencer .env file. Eth-explorer may not start properly."
+				# Still add the empty CHAIN_ID to eth-explorer .env to avoid undefined variable warnings
+				update_env_var "$env_file" "CHAIN_ID" ""
+			fi
+		else
+			log "WARN" "Sequencer .env file not found. Adding empty CHAIN_ID to prevent warnings."
+			# Add empty CHAIN_ID to eth-explorer .env to avoid undefined variable warnings
+			update_env_var "$env_file" "CHAIN_ID" ""
+		fi
+	fi
+
+	# Check for missing EXPLORER_POSTGRES_PASSWORD and generate if empty
+	if grep -q "^EXPLORER_POSTGRES_PASSWORD=$" "$env_file" || ! grep -q "^EXPLORER_POSTGRES_PASSWORD=" "$env_file"; then
+		log "CONFIG" "Generating random PostgreSQL password for eth-explorer..."
+		local postgres_password=$(openssl rand -hex 16 | tr -d '\n')
+		update_env_var "$env_file" "EXPLORER_POSTGRES_PASSWORD" "$postgres_password"
+		log "SUCCESS" "PostgreSQL password generated and set for eth-explorer"
+	fi
+
+	# Check for missing SECRET_KEY_BASE and generate if empty
+	if grep -q "^SECRET_KEY_BASE=$" "$env_file" || ! grep -q "^SECRET_KEY_BASE=" "$env_file"; then
+		log "CONFIG" "Generating random secret key base for eth-explorer..."
+		local secret_key_base=$(openssl rand -base64 64 | tr -d '\n')
+		update_env_var "$env_file" "SECRET_KEY_BASE" "$secret_key_base"
+		log "SUCCESS" "Secret key base generated and set for eth-explorer"
+	fi
+
+	log "SUCCESS" "Eth-explorer configuration setup completed"
+}
+
 # Configuration management
 setup_configuration() {
 	log "CONFIG" "Setting up configuration..."
@@ -917,6 +1281,16 @@ setup_configuration() {
 	# Setup fullnode configuration if deployed
 	if [[ $DEPLOY_FULLNODE == "true" ]]; then
 		setup_fullnode_configuration
+	fi
+
+	# Setup eth-faucet configuration if deployed
+	if [[ $DEPLOY_ETH_FAUCET == "true" ]]; then
+		setup_eth_faucet_configuration
+	fi
+
+	# Setup eth-explorer configuration if deployed
+	if [[ $DEPLOY_ETH_EXPLORER == "true" ]]; then
+		setup_eth_explorer_configuration
 	fi
 
 	log "SUCCESS" "All configuration setup completed"
@@ -966,7 +1340,6 @@ validate_sequencer_files() {
 		".env"
 		"genesis.json"
 		"entrypoint.sequencer.sh"
-		"single-sequencer.Dockerfile"
 	)
 
 	for file in "${required_files[@]}"; do
@@ -1023,20 +1396,30 @@ show_deployment_status() {
 	echo "📁 Deployment Directory: $DEPLOYMENT_DIR"
 	echo ""
 	echo "🚀 Available Stacks:"
-	echo "  📡 Single Sequencer: $DEPLOYMENT_DIR/single-sequencer"
-
-	if [[ $DEPLOY_DA_CELESTIA == "true" ]]; then
-		echo "  🌌 Celestia Data Availability: $DEPLOYMENT_DIR/da-celestia"
-	fi
 
 	if [[ $SELECTED_SEQUENCER == "single-sequencer" ]]; then
-		echo "  📡 Single Sequencer: $DEPLOYMENT_DIR/da-celestia"
+		echo "  📡 Single Sequencer: $DEPLOYMENT_DIR/stacks/single-sequencer"
+	fi
+
+	if [[ $DEPLOY_DA_CELESTIA == "true" ]]; then
+		echo "  🌌 Celestia Data Availability: $DEPLOYMENT_DIR/stacks/da-celestia"
+	fi
+
+	if [[ $DEPLOY_DA_LOCAL == "true" ]]; then
+		echo "  🏠 Local Data Availability: $DEPLOYMENT_DIR/stacks/da-local"
 	fi
 
 	if [[ $DEPLOY_FULLNODE == "true" ]]; then
-		echo "  🔗 Fullnode: $DEPLOYMENT_DIR/fullnode"
+		echo "  🔗 Fullnode: $DEPLOYMENT_DIR/stacks/fullnode"
 	fi
 
+	if [[ $DEPLOY_ETH_FAUCET == "true" ]]; then
+		echo "  💰 Eth-Faucet: $DEPLOYMENT_DIR/stacks/eth-faucet"
+	fi
+
+	if [[ $DEPLOY_ETH_EXPLORER == "true" ]]; then
+		echo "  🔍 Eth-Explorer: $DEPLOYMENT_DIR/stacks/eth-explorer"
+	fi
 
 	echo ""
 	echo "▶️  Next Steps:"
@@ -1052,8 +1435,15 @@ show_deployment_status() {
 		echo ""
 	fi
 
+	if [[ $DEPLOY_DA_LOCAL == "true" ]]; then
+		echo "🚀 Start the Local Data Availability stack first:"
+		echo "  1. cd $DEPLOYMENT_DIR/stacks/da-local"
+		echo "  2. docker compose up -d"
+		echo ""
+	fi
+
 	if [[ $SELECTED_SEQUENCER == "single-sequencer" ]]; then
-		echo "🚀 Start the Sequencer Single Sequencer stack:"
+		echo "🚀 Start the Single Sequencer stack:"
 		echo "  1. cd $DEPLOYMENT_DIR/stacks/single-sequencer"
 		echo "  2. docker compose up -d"
 		echo ""
@@ -1066,7 +1456,21 @@ show_deployment_status() {
 		echo ""
 	fi
 
+	if [[ $DEPLOY_ETH_FAUCET == "true" ]]; then
+		echo "🚀 Start the Eth-Faucet stack:"
+		echo "  1. cd $DEPLOYMENT_DIR/stacks/eth-faucet"
+		echo "  2. docker compose up -d"
+		echo ""
+	fi
+
 	echo "🌐 Service Endpoints:"
+
+	if [[ $DEPLOY_DA_LOCAL == "true" ]]; then
+		echo "  🏠 Local DA:"
+		echo "    - Local DA RPC: http://localhost:7980"
+		echo ""
+	fi
+
 	if [[ $SELECTED_SEQUENCER == "single-sequencer" ]]; then
 		echo "  📡 Single Sequencer:"
 		echo "    - Ev-reth Prometheus Metrics: http://localhost:9000"
@@ -1083,13 +1487,19 @@ show_deployment_status() {
 		echo ""
 	fi
 
-	echo "🛠️  Service Management:"
+	if [[ $DEPLOY_ETH_FAUCET == "true" ]]; then
+		echo "  💰 Eth-Faucet:"
+		echo "    - Faucet Web Interface: http://localhost:8081"
+		echo ""
+	fi
+
+	echo "�️  Service Management:"
 	echo "  - View status: docker compose ps"
 	echo "  - View logs: docker compose logs -f"
 	echo "  - Stop services: docker compose down"
 	echo "  - Restart services: docker compose restart"
 	echo ""
-	echo "🔍 Health Monitoring:"
+	echo "�🔍 Health Monitoring:"
 	echo "  - Check service status: docker compose ps"
 	echo "  - Test endpoints manually using curl"
 	echo "  - View service logs: docker compose logs -f"
@@ -1286,12 +1696,21 @@ main() {
 	# Interactive fullnode selection
 	select_fullnode_deployment
 
+	# Interactive eth-faucet selection
+	select_eth_faucet_deployment
+
+	# Interactive eth-explorer selection
+	select_eth_explorer_deployment
+
 	# Show what will be deployed
 	local deployment_info="$SELECTED_SEQUENCER"
 	if [[ $DEPLOY_FULLNODE == "true" ]]; then
 		deployment_info="$deployment_info + Fullnode"
 	fi
-	if [[ $DEPLOY_DA_CELESTIA == "true" ]]; then
+	if [[ $DEPLOY_ETH_FAUCET == "true" ]]; then
+		deployment_info="$deployment_info + Eth-Faucet"
+	fi
+	if [[ $DEPLOY_DA_CELESTIA == "true" || $DEPLOY_DA_LOCAL == "true" ]]; then
 		deployment_info="$deployment_info + $SELECTED_DA"
 	fi
 	log "INFO" "Deploying: $deployment_info"
