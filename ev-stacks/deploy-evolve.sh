@@ -11,7 +11,8 @@ readonly SCRIPT_VERSION="1.2.0"
 readonly SCRIPT_NAME="deploy-evolve"
 readonly REPO_URL="https://github.com/evstack/ev-toolbox"
 readonly GITHUB_RAW_BASE="https://raw.githubusercontent.com/evstack/ev-toolbox"
-readonly BASE_URL="$GITHUB_RAW_BASE/refs/heads/main/ev-stacks"
+# readonly BASE_URL="$GITHUB_RAW_BASE/refs/heads/main/ev-stacks"
+readonly BASE_URL="$GITHUB_RAW_BASE/refs/heads/claude/fix_fullnode/ev-stacks"
 readonly DEPLOYMENT_DIR="$HOME/evolve-deployment"
 
 # File and directory constants
@@ -57,6 +58,7 @@ readonly FULLNODE_PROMETHEUS_PORT="9002"
 readonly FULLNODE_NODE_RPC_PORT="7331"
 readonly FULLNODE_NODE_METRICS_PORT="26662"
 readonly ETH_FAUCET_PORT="8081"
+readonly ETH_EXPLORER_PORT="3000"
 
 # Color codes for output
 readonly RED='\033[0;31m'

@@ -8,7 +8,9 @@ EV-Stacks provides pre-configured deployment stacks for running Evolve chains wi
 
 - **Single Sequencer**: A single-node sequencer setup for development and testing
 - **Full Node**: Additional network connectivity and redundancy
-- **Data Availability**: Modular DA layer integration (currently supports Celestia)
+- **Data Availability**: Modular DA layer integration (supports Celestia and local DA)
+- **Blockchain Explorer**: Web-based blockchain explorer using Blockscout
+- **Token Faucet**: Web-based faucet for distributing test tokens
 
 ## Prerequisites
 
@@ -107,6 +109,7 @@ The deployment script will guide you through:
 
 #### 1. Start the Data Availability Layer First
 
+**For Celestia DA:**
 ```bash
 cd $HOME/evolve-deployment/stacks/da-celestia
 docker compose up -d
@@ -125,6 +128,12 @@ docker compose logs -f
 docker exec -it celestia-node cel-key list --node.type=light
 
 # Fund this address using the Celestia Discord faucet (https://discord.gg/celestiacommunity) or the Celenium web faucet (https://mocha.celenium.io/faucet)
+```
+
+**For Local DA (development only):**
+```bash
+cd $HOME/evolve-deployment/stacks/da-local
+docker compose up -d
 ```
 
 #### 2. Start the Single Sequencer
@@ -153,6 +162,20 @@ Monitor the fullnode startup:
 docker compose logs -f
 ```
 
+#### 4. Start Optional Services
+
+**Blockchain Explorer (if deployed):**
+```bash
+cd $HOME/evolve-deployment/stacks/eth-explorer
+docker compose up -d
+```
+
+**Token Faucet (if deployed):**
+```bash
+cd $HOME/evolve-deployment/stacks/eth-faucet
+docker compose up -d
+```
+
 ### Deployment Structure
 
 The deployment script organizes files in the following structure:
@@ -164,7 +187,10 @@ $HOME/evolve-deployment/
 └── stacks/
     ├── single-sequencer/       # Single sequencer stack
     ├── fullnode/              # Full node stack (optional)
-    └── da-celestia/           # Celestia DA stack
+    ├── da-celestia/           # Celestia DA stack
+    ├── da-local/              # Local DA stack (development)
+    ├── eth-explorer/          # Blockchain explorer stack (optional)
+    └── eth-faucet/            # Token faucet stack (optional)
 ```
 
 ### Verifying the Deployment
@@ -173,9 +199,11 @@ After all services are running, verify the deployment:
 
 ```bash
 # Check all services are running
-cd $HOME/evolve-deployment/stacks/da-celestia && docker compose ps
+cd $HOME/evolve-deployment/stacks/da-celestia && docker compose ps  # or da-local
 cd $HOME/evolve-deployment/stacks/single-sequencer && docker compose ps
 cd $HOME/evolve-deployment/stacks/fullnode && docker compose ps  # if deployed
+cd $HOME/evolve-deployment/stacks/eth-explorer && docker compose ps  # if deployed
+cd $HOME/evolve-deployment/stacks/eth-faucet && docker compose ps  # if deployed
 
 # Test the RPC endpoints
 curl -X POST -H "Content-Type: application/json" \
@@ -186,6 +214,13 @@ curl -X POST -H "Content-Type: application/json" \
 curl -X POST -H "Content-Type: application/json" \
   --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
   http://localhost:8545  # or the configured fullnode RPC port
+
+# Test optional services (if deployed)
+# Blockchain Explorer
+curl -I http://localhost:3000
+
+# Token Faucet
+curl -I http://localhost:8081
 ```
 
 ## Available Stacks
@@ -200,6 +235,17 @@ Celestia modular data availability layer integration:
 **Services:**
 
 - Celestia Light Node RPC: `http://localhost:26658`
+
+### 🏠 Data Availability - Local (`stacks/da-local/`)
+
+Local data availability layer for development and testing:
+
+- **Local DA**: Lightweight DA service for development environments
+- **Purpose**: Eliminates external dependencies for local testing
+
+**Services:**
+
+- Local DA Service: Internal network communication only
 
 ### 🔗 Single Sequencer (`stacks/single-sequencer/`)
 
@@ -227,6 +273,33 @@ Additional full node deployment for enhanced network connectivity:
 - Ev-node RPC: `http://localhost:7331`
 - Ev-node Prometheus Metrics: `http://localhost:26662/metrics`
 
+### 🔍 Blockchain Explorer (`stacks/eth-explorer/`)
+
+Blockscout-based blockchain explorer for monitoring and analyzing the chain:
+
+- **Blockscout Backend**: API and indexing services
+- **Blockscout Frontend**: Web interface for blockchain exploration
+- **PostgreSQL**: Database for storing indexed blockchain data
+- **Redis**: Caching layer for improved performance
+- **Stats Service**: Analytics and statistics generation
+- **Smart Contract Verifier**: Contract verification services
+
+**Services:**
+
+- Explorer Frontend: `http://localhost:3000`
+- Explorer Backend API: `http://localhost:4000` (internal)
+
+### 💰 Token Faucet (`stacks/eth-faucet/`)
+
+Web-based faucet for distributing test tokens:
+
+- **Eth-Faucet**: Simple web interface for requesting test tokens
+- **Purpose**: Provides easy access to test tokens for development
+
+**Services:**
+
+- Faucet Web Interface: `http://localhost:8081`
+
 ## Configuration
 
 The script automatically configures:
@@ -243,17 +316,33 @@ The script automatically configures:
 - **Generation**: Automatically generated using `openssl rand -base64 32`
 - **Purpose**: Secures the private key used to sign blocks
 
-#### DA Namespace
+#### DA Configuration
 
-- **What it is**: A unique identifier for your data on Celestia
+**For Celestia DA:**
+- **DA Namespace**: A unique identifier for your data on Celestia
 - **Format**: 58-character hex string representing a 29-byte identifier (e.g., `000000000000000000000000000000000000002737d4d967c7ca526dd5`)
 - **Purpose**: Separates your chain's data from other chains using Celestia
+
+**For Local DA:**
+- **Local DA Tag**: Docker image version for the local DA service
+- **Purpose**: Provides lightweight DA for development without external dependencies
 
 #### JWT Tokens
 
 - **What they are**: Secure tokens for communication between Ev-Reth and Ev-node
 - **Generation**: Automatically created using `openssl rand -hex 32`
 - **Purpose**: Authenticates internal API calls between components
+
+#### Optional Service Configuration
+
+**Blockchain Explorer:**
+- **Database Password**: Automatically generated for PostgreSQL instances
+- **Secret Key**: Generated for secure session management
+- **Chain Integration**: Automatically configured to connect to your sequencer
+
+**Token Faucet:**
+- **Private Key**: Must be configured with a funded account's private key
+- **Port Configuration**: Configurable port for the web interface (default: 8081)
 
 ## What Gets Created
 
@@ -301,6 +390,13 @@ The script automatically configures:
      - Configures node to synchronize from a specific block instead of genesis block (default values can be overriden by environment variables `DA_TRUSTED_HEIGHT` and `DA_TRUSTED_HASH`)
      - Generates and exports auth token to shared volume
 
+#### Local DA Stack
+
+1. **local-da**: Lightweight data availability service for development
+   - **Purpose**: Provides DA functionality without external network dependencies
+   - **Configuration**: Listens on all interfaces for maximum compatibility
+   - **Use case**: Development and testing environments
+
 #### Full Node Stack (Optional)
 
 1. **jwt-init-fullnode**: Creates JWT tokens for full node
@@ -312,6 +408,23 @@ The script automatically configures:
      - Fetches sequencer P2P information
      - Auto-retrieves genesis hash from reth-sequencer
      - Imports JWT tokens and DA auth tokens from shared volumes
+
+#### Blockchain Explorer Stack (Optional)
+
+1. **db**: PostgreSQL database for storing indexed blockchain data
+2. **stats-db**: Separate PostgreSQL instance for analytics data
+3. **redis**: Redis cache for improved performance
+4. **stats**: Analytics service for generating blockchain statistics
+5. **blockscout-backend**: Main API and indexing service
+6. **blockscout-frontend**: Web interface for blockchain exploration
+7. **smart-contract-verifier**: Service for verifying smart contracts
+
+#### Token Faucet Stack (Optional)
+
+1. **eth-faucet**: Web-based faucet service
+   - **Configuration**: Connects to sequencer RPC endpoint
+   - **Purpose**: Distributes test tokens to users
+   - **Security**: Configurable rate limiting and proxy count
 
 ### 4. Configuration Files
 
@@ -342,6 +455,31 @@ CELESTIA_NODE_TAG="latest"                       # Docker image version
 DA_CORE_IP="celestia-app"                        # Celestia consensus endpoint
 DA_CORE_PORT="26657"                             # Celestia consensus port
 DA_RPC_PORT="26658"                              # Light node RPC port
+```
+
+**Local DA**:
+
+```bash
+LOCAL_DA_TAG="main"                              # Docker image version for local DA
+```
+
+**Blockchain Explorer**:
+
+```bash
+CHAIN_ID=""                                      # Must match your chain ID
+EXPLORER_POSTGRES_PASSWORD=""                    # Database password (auto-generated)
+EXPLORER_DB_HOST="blockscout-db"                 # Database host
+EXPLORER_FRONTEND_PORT="3000"                    # Web interface port
+RETH_HOST="ev-reth-sequencer"                    # RPC endpoint host
+RETH_HOST_HTTP_PORT="8545"                       # RPC HTTP port
+RETH_HOST_WS_PORT="8546"                         # RPC WebSocket port
+```
+
+**Token Faucet**:
+
+```bash
+PRIVATE_KEY=""                                   # Private key of funded account
+ETH_FAUCET_PORT="8081"                          # Faucet web interface port
 ```
 
 #### Docker Compose Files
@@ -378,11 +516,33 @@ After deployment, you'll have access to these endpoints:
 - **Ev-node RPC**: `http://localhost:7331`
 - **Ev-node Metrics**: `http://localhost:26662/metrics`
 
-### Celestia DA
+### Data Availability
 
+**Celestia DA:**
 - **Light Node RPC**: `http://localhost:26658`
   - Data availability queries
   - Blob submission and retrieval
+
+**Local DA:**
+- **Local DA Service**: Internal network communication only
+  - No external endpoints exposed
+  - Used internally by sequencer and full nodes
+
+### Optional Services
+
+**Blockchain Explorer (if deployed):**
+- **Frontend**: `http://localhost:3000`
+  - Web interface for blockchain exploration
+  - Transaction and block browsing
+  - Account and contract information
+- **Backend API**: `http://localhost:4000` (internal)
+  - REST API for blockchain data
+  - Used by frontend and external integrations
+
+**Token Faucet (if deployed):**
+- **Web Interface**: `http://localhost:8081`
+  - Simple form for requesting test tokens
+  - Rate-limited token distribution
 
 ## Customizing the Deployment
 
@@ -394,6 +554,8 @@ You can edit the `.env` files to change:
 - **Block time**: Modify `EVM_BLOCK_TIME` (default: 500ms)
 - **DA settings**: Update `DA_START_HEIGHT`, `DA_HEADER_NAMESPACE`, or `DA_DATA_NAMESPACE`
 - **Ports**: Change port mappings to avoid conflicts
+- **Explorer settings**: Modify `EXPLORER_FRONTEND_PORT` or database configurations
+- **Faucet settings**: Update `ETH_FAUCET_PORT` or configure different private keys
 
 ### 2. Adding Custom Genesis
 
@@ -407,6 +569,30 @@ Replace `genesis.json` in the sequencer directory with your custom genesis block
 2. Modify port mappings in the new `docker-compose.yml`
 3. Update the `.env` file with different ports
 4. Start the new full node stack
+
+#### Deploying Optional Services
+
+**To add the blockchain explorer:**
+1. Navigate to `stacks/eth-explorer/`
+2. Configure the `.env` file with your chain ID and database password
+3. Start the explorer stack: `docker compose up -d`
+
+**To add the token faucet:**
+1. Navigate to `stacks/eth-faucet/`
+2. Configure the `.env` file with a funded account's private key
+3. Start the faucet stack: `docker compose up -d`
+
+#### Switching Data Availability Layers
+
+**From Celestia to Local DA:**
+1. Stop the Celestia DA stack: `cd stacks/da-celestia && docker compose down`
+2. Start the Local DA stack: `cd stacks/da-local && docker compose up -d`
+3. Update sequencer configuration to use local DA endpoints
+
+**From Local DA to Celestia:**
+1. Stop the Local DA stack: `cd stacks/da-local && docker compose down`
+2. Configure and start Celestia DA: `cd stacks/da-celestia && docker compose up -d`
+3. Fund the Celestia account and update sequencer configuration
 
 ## Service Management
 
@@ -456,8 +642,16 @@ docker run --rm -v fullnode-data:/data -v $(pwd):/backup alpine tar czf /backup/
 docker run --rm -v celestia-appd-data:/data -v $(pwd):/backup alpine tar czf /backup/celestia-appd-data-backup.tar.gz -C /data .
 docker run --rm -v celestia-node-data:/data -v $(pwd):/backup alpine tar czf /backup/celestia-node-data-backup.tar.gz -C /data .
 
+# Backup Blockchain Explorer volumes (if deployed)
+docker run --rm -v eth-explorer_pg-data:/data -v $(pwd):/backup alpine tar czf /backup/explorer-db-backup.tar.gz -C /data .
+docker run --rm -v eth-explorer_pg-stats-data:/data -v $(pwd):/backup alpine tar czf /backup/explorer-stats-db-backup.tar.gz -C /data .
+docker run --rm -v eth-explorer_redis-data:/data -v $(pwd):/backup alpine tar czf /backup/explorer-redis-backup.tar.gz -C /data .
+
 # Restore volumes (example for sequencer data)
 docker run --rm -v sequencer-data:/data -v $(pwd):/backup alpine tar xzf /backup/sequencer-data-backup.tar.gz -C /data
+
+# Note: Token faucet has no persistent volumes to backup
+# Note: Local DA has no persistent volumes to backup
 ```
 
 ## License
