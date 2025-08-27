@@ -2,9 +2,6 @@
 # Fail on any error
 set -e
 
-# Fail on any error in a pipeline
-set -o pipefail
-
 # Fail when using undeclared variables
 set -u
 
@@ -18,14 +15,14 @@ default_flags=""
 # Get sequencer node id
 log "NETWORK" "Fetching sequencer P2P information from ev-reth-sequencer:30303"
 RESPONSE=$(curl -sX POST \
-	-H "Content-Type: application/json" \
-	-d "{"jsonrpc":"2.0","method":"admin_nodeInfo","params":[],"id":1}" \
+	-H 'Content-Type: application/json' \
+	-d '{"jsonrpc":"2.0","method":"admin_nodeInfo","params":[],"id":1}' \
 	http://ev-reth-sequencer:8545 | \
     jq -r '.result.enode')
 
 if [ $? -eq 0 ] && [ -n "${RESPONSE}" ]; then
 	log "SUCCESS" "Received response from ev-rethsequencer"
-	SEQUENCER_P2P_INFO=$(echo "${RESPONSE}" | sed 's|@127\.0\.0\.1|@ev-reth-sequencer')
+	SEQUENCER_P2P_INFO=$(echo "${RESPONSE}" | sed 's|@127\.0\.0\.1|@ev-reth-sequencer|')
 
 	# Validate the format of SEQUENCER_P2P_INFO
     if ! echo "${SEQUENCER_P2P_INFO}" | \
