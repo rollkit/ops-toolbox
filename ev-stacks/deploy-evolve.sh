@@ -506,8 +506,8 @@ download_fullnode_files() {
 		"stacks/fullnode/.env"
 		"$docker_compose_file"
 		"stacks/fullnode/entrypoint.ev-reth.sh"
-		"ev-stacks/entrypoint.fullnode.sh"
-		"ev-stacks/dockerfile"
+		"stacks/fullnode/entrypoint.fullnode.sh"
+		"stacks/fullnode/dockerfile"
 	)
 
 	for file in "${files[@]}"; do
