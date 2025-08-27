@@ -34,7 +34,7 @@ services:
     restart: always
     volumes:
       - ../single-sequencer/genesis.json:/root/genesis.json:ro
-      - ./entrypoint.fullnode.sh:/entrypoint.sh
+      - ./entrypoint.ev-reth.sh:/entrypoint.sh
       - jwttoken-fullnode:/root/jwt:ro
       - ev-reth-fullnode-data:/root/reth
       - ../../lib/logging.sh:/usr/local/lib/logging.sh:ro
