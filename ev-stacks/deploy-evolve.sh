@@ -505,7 +505,9 @@ download_fullnode_files() {
 	local files=(
 		"stacks/fullnode/.env"
 		"$docker_compose_file"
-		"stacks/fullnode/entrypoint.fullnode.sh"
+		"stacks/fullnode/entrypoint.ev-reth.sh"
+		"ev-stacks/entrypoint.fullnode.sh"
+		"ev-stacks/dockerfile"
 	)
 
 	for file in "${files[@]}"; do
@@ -519,7 +521,7 @@ download_fullnode_files() {
 	done
 
 	# Make entrypoint scripts executable
-	chmod +x entrypoint.fullnode.sh || error_exit "Failed to make fullnode entrypoint script executable"
+	chmod +x entrypoint.fullnode.sh entrypoint.ev-reth.sh || error_exit "Failed to make entrypoint scripts executable"
 
 	log "SUCCESS" "Fullnode deployment files downloaded successfully"
 }
