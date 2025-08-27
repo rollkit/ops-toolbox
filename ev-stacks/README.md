@@ -265,6 +265,10 @@ Additional full node deployment for enhanced network connectivity:
 
 - Provides redundancy and additional RPC endpoints
 - Can be deployed alongside sequencer for production setups
+- **Automatic Peer Discovery**: Full nodes automatically discover and connect to the sequencer
+  - Fetches sequencer P2P information via JSON-RPC on startup
+  - Configures the sequencer as a trusted peer for reliable connectivity
+
 
 **Services:**
 
