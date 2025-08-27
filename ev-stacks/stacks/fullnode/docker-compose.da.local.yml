@@ -19,7 +19,11 @@ services:
 
   ev-reth-fullnode:
     container_name: ev-reth-fullnode
-    image: ghcr.io/evstack/ev-reth:latest
+    # image: ghcr.io/evstack/ev-reth:latest
+    image: localhost/ev-reth:rolling
+    build:
+      context: .
+      dockerfile: dockerfile
     depends_on:
       jwt-init-fullnode:
         condition: service_completed_successfully
