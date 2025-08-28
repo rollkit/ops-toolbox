@@ -1463,13 +1463,14 @@ show_deployment_status() {
 		echo ""
 	fi
 
-	echo "🌐 Service Endpoints:"
-
-	if [[ $DEPLOY_DA_LOCAL == "true" ]]; then
-		echo "  🏠 Local DA:"
-		echo "    - Local DA RPC: http://localhost:7980"
+	if [[ $DEPLOY_ETH_EXPLORER == "true" ]]; then
+		echo "🚀 Start the Eth-Explorer stack:"
+		echo "  1. cd $DEPLOYMENT_DIR/stacks/eth-explorer"
+		echo "  2. docker compose up -d"
 		echo ""
 	fi
+
+	echo "🌐 Service Endpoints:"
 
 	if [[ $SELECTED_SEQUENCER == "single-sequencer" ]]; then
 		echo "  📡 Single Sequencer:"
@@ -1490,6 +1491,12 @@ show_deployment_status() {
 	if [[ $DEPLOY_ETH_FAUCET == "true" ]]; then
 		echo "  💰 Eth-Faucet:"
 		echo "    - Faucet Web Interface: http://localhost:8081"
+		echo ""
+	fi
+
+	if [[ $DEPLOY_ETH_EXPLORER == "true" ]]; then
+		echo "  🔍 Eth-Explorer:"
+		echo "    - Blockscout Web Interface: http://localhost:3000"
 		echo ""
 	fi
 
