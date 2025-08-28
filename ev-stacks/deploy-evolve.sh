@@ -57,7 +57,6 @@ readonly FULLNODE_PROMETHEUS_PORT="9002"
 readonly FULLNODE_NODE_RPC_PORT="7331"
 readonly FULLNODE_NODE_METRICS_PORT="26662"
 readonly ETH_FAUCET_PORT="8081"
-readonly ETH_EXPLORER_PORT="3000"
 
 # Color codes for output
 readonly RED='\033[0;31m'
@@ -504,7 +503,6 @@ download_fullnode_files() {
 	local files=(
 		"stacks/fullnode/.env"
 		"$docker_compose_file"
-		"stacks/fullnode/entrypoint.ev-reth.sh"
 		"stacks/fullnode/entrypoint.fullnode.sh"
 	)
 
@@ -519,7 +517,7 @@ download_fullnode_files() {
 	done
 
 	# Make entrypoint scripts executable
-	chmod +x entrypoint.fullnode.sh entrypoint.ev-reth.sh || error_exit "Failed to make entrypoint scripts executable"
+	chmod +x entrypoint.fullnode.sh || error_exit "Failed to make fullnode entrypoint script executable"
 
 	log "SUCCESS" "Fullnode deployment files downloaded successfully"
 }
@@ -1465,13 +1463,14 @@ show_deployment_status() {
 		echo ""
 	fi
 
-	echo "🌐 Service Endpoints:"
-
-	if [[ $DEPLOY_DA_LOCAL == "true" ]]; then
-		echo "  🏠 Local DA:"
-		echo "    - Local DA RPC: http://localhost:7980"
+	if [[ $DEPLOY_ETH_EXPLORER == "true" ]]; then
+		echo "🚀 Start the Eth-Explorer stack:"
+		echo "  1. cd $DEPLOYMENT_DIR/stacks/eth-explorer"
+		echo "  2. docker compose up -d"
 		echo ""
 	fi
+
+	echo "🌐 Service Endpoints:"
 
 	if [[ $SELECTED_SEQUENCER == "single-sequencer" ]]; then
 		echo "  📡 Single Sequencer:"
@@ -1492,6 +1491,12 @@ show_deployment_status() {
 	if [[ $DEPLOY_ETH_FAUCET == "true" ]]; then
 		echo "  💰 Eth-Faucet:"
 		echo "    - Faucet Web Interface: http://localhost:8081"
+		echo ""
+	fi
+
+	if [[ $DEPLOY_ETH_EXPLORER == "true" ]]; then
+		echo "  🔍 Eth-Explorer:"
+		echo "    - Blockscout Web Interface: http://localhost:3000"
 		echo ""
 	fi
 
